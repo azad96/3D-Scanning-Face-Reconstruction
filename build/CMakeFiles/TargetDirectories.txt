@@ -1,3 +1,0 @@
-/home/umur/Documents/TUM/3Dscan&motion/Project/example/build/CMakeFiles/project3dtopixel.dir
-/home/umur/Documents/TUM/3Dscan&motion/Project/example/build/CMakeFiles/edit_cache.dir
-/home/umur/Documents/TUM/3Dscan&motion/Project/example/build/CMakeFiles/rebuild_cache.dir
