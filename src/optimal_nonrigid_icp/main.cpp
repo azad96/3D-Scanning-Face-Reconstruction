@@ -30,6 +30,10 @@ int main(int argc, char**argv)
 	// target_reader->SetFileName(target_filename.c_str());
 	// target_reader->Update();
 
+	vtkSmartPointer<vtkPLYReader> source_reader = vtkSmartPointer<vtkPLYReader>::New();
+	source_reader->SetFileName(template_filename.c_str());
+	source_reader->Update();
+
 	vtkSmartPointer<vtkPLYReader> template_reader = vtkSmartPointer<vtkPLYReader>::New();
 	template_reader->SetFileName(template_filename.c_str());
 	template_reader->Update();
@@ -38,6 +42,7 @@ int main(int argc, char**argv)
 	target_reader->SetFileName(target_filename.c_str());
 	target_reader->Update();
 
+  	vtkSmartPointer<vtkPolyData> source_polyData = source_reader->GetOutput();
   	vtkSmartPointer<vtkPolyData> template_polyData = template_reader->GetOutput();
 	vtkSmartPointer<vtkPolyData> target_polyData = target_reader->GetOutput();
 
@@ -47,12 +52,12 @@ int main(int argc, char**argv)
 
 
 	vtkSmartPointer<vtkPLYWriter> plyWriter = vtkSmartPointer<vtkPLYWriter>::New();
-	plyWriter->SetInput(template_polyData);
+	plyWriter->SetInputData(template_polyData);
 
 	float alpha = 10.0;
 	float beta = 1.0;
 	float gamma = 1.0;
-	int step = 10;
+	int step = 2;
 
 	for (int i = 0; i < step; ++i)
 	{
@@ -67,11 +72,18 @@ int main(int argc, char**argv)
 		plyWriter->Write();
 	}
 
+	vtkSmartPointer<vtkPolyDataMapper> source_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+ 	source_mapper->SetInputData(source_polyData);	
+
 	vtkSmartPointer<vtkPolyDataMapper> template_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
- 	template_mapper->SetInput(template_polyData);	
+ 	template_mapper->SetInputData(template_polyData);	
 
   	vtkSmartPointer<vtkPolyDataMapper> target_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-  	target_mapper->SetInput(target_polyData);	
+  	target_mapper->SetInputData(target_polyData);	
+
+	vtkSmartPointer<vtkActor> source_actor = vtkSmartPointer<vtkActor>::New();
+  	source_actor->SetMapper(source_mapper);
+  	source_actor->GetProperty()->SetColor(1,1,1);
 
   	vtkSmartPointer<vtkActor> template_actor = vtkSmartPointer<vtkActor>::New();
   	template_actor->SetMapper(template_mapper);
@@ -87,8 +99,9 @@ int main(int argc, char**argv)
   	vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
   	renderWindowInteractor->SetRenderWindow(renderWindow);
 
+  	renderer->AddActor(source_actor);
   	renderer->AddActor(template_actor);
-  	//renderer->AddActor(target_actor);
+  	// renderer->AddActor(target_actor);
   	renderer->SetBackground(0.1804,0.5451,0.3412); // Sea green
 
 	vtkSmartPointer<vtkInteractorStyleRubberBandPick> interactorStyle = vtkSmartPointer<vtkInteractorStyleRubberBandPick>::New();
