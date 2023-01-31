@@ -101,6 +101,7 @@ public:
 
 		std::cout << meanshape.rows() << " " << meanshape.cols() << std::endl;
 		key_points = readKeypoints(data_path + "/kp_inds.csv");
+		
 		std::cout<<key_points.size()<<std::endl;
 		m_triangles = readTriangle(data_path + "/tri.csv");
 
@@ -111,6 +112,8 @@ public:
 
 		rotation = MatrixXd::Identity(3, 3);
 		translation = VectorXd::Zero(3);
+
+		createKeyVector();
     }
 	
 	void clear() {
@@ -119,6 +122,14 @@ public:
 
 		rotation = MatrixXd::Identity(3, 3);
 		translation = VectorXd::Zero(3);
+	}
+
+	void createKeyVector(){
+		Eigen::MatrixXd mesh = get_mesh().reshaped<RowMajor>(35709, 3);
+		for(int i = 0 ; i < this->key_points.size() ; i++){
+			Vector3f a(mesh(this->key_points[i], 0),mesh(this->key_points[i], 1),mesh(this->key_points[i], 2));
+			this->key_vectors.push_back(a);
+		}
 	}
 	
 	Eigen::MatrixXd get_mesh() {
@@ -148,12 +159,6 @@ public:
 		for (int i = 0; i < mesh.rows(); i++) {
 			file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
 			
-		}
-		for(int i = 0 ; i < this->key_points.size() ; i++){
-			
-			Vector3f a(mesh(this->key_points[i], 0),mesh(this->key_points[i], 1),mesh(this->key_points[i], 2));
-			//std::cout<<mesh(this->key_points[i], 0)<<" "<< mesh(this->key_points[i], 1)<< " "<< mesh(this->key_points[i], 2)<<std::endl;
-			key_vectors.push_back(a);
 		}
 
 		for ( auto t : m_triangles) {
