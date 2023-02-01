@@ -9,9 +9,10 @@
 
 #define SHOW_MESH_CORRESPONDENCES 0
 
-#define USE_POINT_TO_PLANE	1
-#define USE_LINEAR_ICP		0
+#define USE_POINT_TO_PLANE	0
+#define USE_LINEAR_ICP		1
 
+#define RUN_DEBUG 			0
 #define RUN_SHAPE_ICP		1
 #define RUN_SEQUENCE_ICP	1
 
@@ -62,6 +63,8 @@ int alignMeshWithICP() {
 	// Load the source and target mesh.
 	const std::string filenameSource = std::string("source_mesh.off");
 	const std::string filenameTarget = std::string("target_mesh.off");
+	// const std::string filenameSource = std::string("bunny2.off");
+	// const std::string filenameTarget = std::string("bunny1.off");
 
 	SimpleMesh sourceMesh;
 	if (!sourceMesh.loadMesh(filenameSource)) {
@@ -200,10 +203,13 @@ int reconstructRoom() {
 
 int main() {
 	int result = 0;
+	if (RUN_DEBUG)
+		debugCorrespondenceMatching();
 	if (RUN_SHAPE_ICP)
 		result += alignMeshWithICP();
 	if (RUN_SEQUENCE_ICP)
 		result += reconstructRoom();
+
 
 	return result;
 }
