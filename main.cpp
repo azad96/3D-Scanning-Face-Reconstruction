@@ -6,6 +6,7 @@
 #include "SimpleMesh.h"
 #include "ICPOptimizer.h"
 #include "PointCloud.h"
+#include "FaceModel.h"
 
 #define SHOW_MESH_CORRESPONDENCES 0
 
@@ -61,10 +62,8 @@ void debugCorrespondenceMatching() {
 
 int alignMeshWithICP() {
 	// Load the source and target mesh.
-	const std::string filenameSource = std::string("source_mesh.off");
-	const std::string filenameTarget = std::string("target_mesh.off");
-	// const std::string filenameSource = std::string("bunny2.off");
-	// const std::string filenameTarget = std::string("bunny1.off");
+	const std::string filenameSource = std::string("neutral.off");
+	const std::string filenameTarget = std::string("target_face.off");
 
 	SimpleMesh sourceMesh;
 	if (!sourceMesh.loadMesh(filenameSource)) {
@@ -202,14 +201,24 @@ int reconstructRoom() {
 }
 
 int main() {
-	int result = 0;
-	if (RUN_DEBUG)
-		debugCorrespondenceMatching();
-	if (RUN_SHAPE_ICP)
-		result += alignMeshWithICP();
-	if (RUN_SEQUENCE_ICP)
-		result += reconstructRoom();
+	FaceModel model("../data");
+	// model.initializeRandomExpression();
+	// Matrix3d rotation;
+	// rotation << 0.9396926207859084, 0, 0.3420201433256687,
+	// 	0, 1, 0,
+	// 	-0.3420201433256687, 0, 0.9396926207859084;
+	
 
+	// model.setRotation(rotation);
+	// model.transform();
+	model.write_off("target_face.off"); 
 
-	return result;
+	// int result = 0;
+	// if (RUN_DEBUG)
+	// 	debugCorrespondenceMatching();
+	// if (RUN_SHAPE_ICP)
+	// 	result += alignMeshWithICP();
+	// if (RUN_SEQUENCE_ICP)
+	// 	result += reconstructRoom();
+	// return result;
 }

@@ -95,92 +95,122 @@ public:
 
 		std::cout << "Data reading..." << std::endl;
 
-		idBase = readMatrixCsv(data_path + "/idBase.csv");
-		expBase = readMatrixCsv(data_path + "/expBase.csv");
-		meanshape = readMatrixCsv(data_path + "/meanshape.csv");
+		m_idBase = readMatrixCsv(data_path + "/idBase.csv");
+		m_expBase = readMatrixCsv(data_path + "/expBase.csv");
+		m_meanShape = readMatrixCsv(data_path + "/meanshape.csv");
 
-		std::cout << meanshape.rows() << " " << meanshape.cols() << std::endl;
-		key_points = readKeypoints(data_path + "/kp_inds.csv");
+		std::cout << m_meanShape.rows() << " " << m_meanShape.cols() << std::endl;
+		m_keyPoints = readKeypoints(data_path + "/kp_inds.csv");
 		
-		std::cout<<key_points.size()<<std::endl;
+		std::cout<<m_keyPoints.size()<<std::endl;
 		m_triangles = readTriangle(data_path + "/tri.csv");
 
 		std::cout << "Data reading completed..." << std::endl;
 
-		shapeCoef = VectorXd::Zero(80);
-		expCoef = VectorXd::Zero(64);
+		m_shapeCoef = VectorXd::Zero(80);
+		m_expCoef = VectorXd::Zero(64);
 
-		rotation = MatrixXd::Identity(3, 3);
-		translation = VectorXd::Zero(3);
+		m_rotation = MatrixXd::Identity(3, 3);
+		m_translation = VectorXd::Zero(3);
+
+		updateMesh();
 
 		createKeyVector();
     }
 	
 	void clear() {
-		shapeCoef = VectorXd::Zero(80);
-		expCoef = VectorXd::Zero(64);
+		m_shapeCoef = VectorXd::Zero(80);
+		m_expCoef = VectorXd::Zero(64);
 
-		rotation = MatrixXd::Identity(3, 3);
-		translation = VectorXd::Zero(3);
+		m_rotation = MatrixXd::Identity(3, 3);
+		m_translation = VectorXd::Zero(3);
+	}
+
+	void initializeRandomExpression() {
+		m_expCoef = VectorXd::Random(64)*2;
+		
+	}
+
+	void setRotation(MatrixXd rotation) {
+		m_rotation = rotation;
+	}
+
+	void setTranslation(VectorXd translation) {
+		m_translation = translation;
 	}
 
 	void createKeyVector(){
-		Eigen::MatrixXd mesh = get_mesh().reshaped<RowMajor>(35709, 3);
-		for(int i = 0 ; i < this->key_points.size() ; i++){
-			Vector3f a(mesh(this->key_points[i], 0),mesh(this->key_points[i], 1),mesh(this->key_points[i], 2));
-			this->key_vectors.push_back(a);
+		for(int i = 0 ; i < m_keyPoints.size() ; i++){
+			Vector3f a(m_face(m_keyPoints[i], 0), m_face(m_keyPoints[i], 1), m_face(m_keyPoints[i], 2));
+			m_keyVectors.push_back(a);
 		}
 	}
 	
-	Eigen::MatrixXd get_mesh() {
-		Eigen::MatrixXd face = (idBase * shapeCoef) +(expBase * expCoef) + meanshape;
-		return face;
+	void updateMesh() {
+		m_face = (m_idBase * m_shapeCoef) +(m_expBase * m_expCoef) + m_meanShape;
+		m_face = m_face.reshaped<RowMajor>(35709, 3);
+
 	}
 
-	Eigen::MatrixXd transform(Eigen::MatrixXd face) {
-		return face * rotation;
+	void transform() {
+		int N = m_face.rows();
+		std::cout << m_face.rows() << " " << m_face.cols() << std::endl;
+
+		Eigen::Matrix4d Trans; 
+		Trans.setIdentity();   
+		Trans.block<3,3>(0,0) = m_rotation;
+		Trans.block<3,1>(0,3) = m_translation;
+
+		Eigen::VectorXd oneColumn= VectorXd::Zero(N);
+		oneColumn.setOnes();
+		m_face.conservativeResize(N, 4);
+		m_face.col(3) = oneColumn;
+
+		m_face = (m_face * Trans).block(0, 0, N, 3);
+		std::cout << m_face.rows() << " " << m_face.cols() << std::endl;
+		
+		// m_face = (m_rotation * m_face.transpose()).colwise() + m_translation;
+		// m_face = m_face.transposeInPlace();
 	}
 
-	void write_off() {
-
+	void write_off(std::string filename) {
 		std::cout << "Writing mesh...\n";
 
 		std::ofstream file;
 		
-		Eigen::MatrixXd mesh = get_mesh().reshaped<RowMajor>(35709, 3);
+		Eigen::MatrixXd mesh = m_face.reshaped<RowMajor>(35709, 3);
 
 		std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
 
 		
-		file.open("yeni.off");
+		file.open(filename.c_str());
 		file << "OFF\n";
 		file << "35709 70789 0\n";
 
-		for (int i = 0; i < mesh.rows(); i++) {
+		for (int i = 0; i < mesh.rows(); i++) 
 			file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
-			
-		}
 
-		for ( auto t : m_triangles) {
+		for ( auto t : m_triangles) 
 			file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
-		}
-
+		
 	}
 
 
 public:
-	std::vector<Vector3f> key_vectors;
+	std::vector<Vector3f> m_keyVectors;
 
 private:
-    Eigen::MatrixXd idBase;
-    Eigen::MatrixXd expBase;
+    Eigen::MatrixXd m_idBase;
+    Eigen::MatrixXd m_expBase;
     std::vector<Triangle> m_triangles;
-    Eigen::MatrixXd meanshape;
-    std::vector<unsigned int> key_points;
+    Eigen::MatrixXd m_meanShape;
+    std::vector<unsigned int> m_keyPoints;
 
-	Eigen::VectorXd shapeCoef;
-	Eigen::VectorXd expCoef;
+	Eigen::VectorXd m_shapeCoef;
+	Eigen::VectorXd m_expCoef;
 
-	Eigen::MatrixXd rotation;
-	Eigen::VectorXd translation;
+	Eigen::MatrixXd m_rotation;
+	Eigen::VectorXd m_translation;
+
+	Eigen::MatrixXd m_face;
 };
