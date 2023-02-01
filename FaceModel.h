@@ -124,12 +124,57 @@ public:
 
 		std::cout << "Data reading completed..." << std::endl;
 
+		meanshapeAr = new double[107127];
+		expBaseAr = new double[107127];
+		idBaseAr = new double[107127];
+
+		for( int i = 0; i < 107127; i++) {
+			expBaseAr[j] = new double[64];
+			idBaseAr[j] = new double[80];
+		}
+
+		// initialize arrays
+		for( int i = 0; i < 107127; i++) {
+			meanshapeAr[i] = meanshape(i);
+
+			for( int j = 0; j < 64; j++) {
+				expBaseAr[i][j] = expBase(i, j);
+			}
+
+			for( int j = 0; j < 64; j++) {
+				idBaseAr[i][j] = idBase(i, j);
+			}
+		}
+
+		//Parameters for inner steps
+		expression = new double[107127];
+    	shape = new double[107127];
+    	face = new double[107127];
+    	face_t = new double[107127];
+
 		shapeCoef = VectorXd::Zero(80);
 		expCoef = VectorXd::Zero(64);
 
 		rotation = MatrixXd::Identity(3, 3);
 		translation = VectorXd::Zero(3);
     }
+
+	~FaceModel() {
+		delete[] meanshapeAr;
+		
+		for( int i = 0; i < 64; i++) {
+			delete[] expBaseAr[i]; 
+		}
+
+		for( int i = 0; i < 80; i++) {
+			delete[] idBaseAr[i]; 
+		}
+
+		delete[] expBaseAr;
+		delete[] idBaseAr;
+
+		delete[]
+	}
 	
 	void clear() {
 		shapeCoef = VectorXd::Zero(80);
@@ -140,7 +185,7 @@ public:
 	}
 	
 	Eigen::MatrixXd get_mesh() {
-		Eigen::MatrixXd face = (idBase * shapeCoef) +(expBase * expCoef) + meanshape;
+		Eigen::MatrixXd face = (idBase * shapeCoef) + (expBase * expCoef) + meanshape;
 		return face;
 	}
 
@@ -173,7 +218,7 @@ public:
 
 	}
 
-private:
+public:
     Eigen::MatrixXd idBase;
     Eigen::MatrixXd expBase;
     std::vector<Triangle> m_triangles;
@@ -185,4 +230,16 @@ private:
 
 	Eigen::MatrixXd rotation;
 	Eigen::VectorXd translation;
+
+	//Store in array for ceres usage
+	double** idBaseAr;
+	double** expBaseAr;
+	double* meanshapeAr;
+
+	//Parameters for inner steps
+	double* expression;
+    double* shape;
+    double* face;
+    double* face_t;
+
 };
