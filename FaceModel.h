@@ -4,6 +4,26 @@
 
 #include "Eigen.h"
 
+template <typename T>
+static inline void dotProduct(double** input1, double* input2, const int dim, T* output) {
+	for (int i = 0; i < 107127; i++) {
+		double sum = 0;
+		for (int j = 0; j < dim; j++) {
+			sum += input1[i][j] * input2[j];
+		}
+		output[i] = T(sum);
+	}
+}
+
+template <typename T>
+static inline void sum_params(double* input1, double* input2, double* input3, T* output) {
+
+    for (int i = 0; i < 107127; i++) {
+		output[i] = T(input1[i]) + T(input2[i]) + T(input3[i]);
+	}
+}
+
+
 struct Vertex {
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -125,12 +145,12 @@ public:
 		std::cout << "Data reading completed..." << std::endl;
 
 		meanshapeAr = new double[107127];
-		expBaseAr = new double[107127];
-		idBaseAr = new double[107127];
+		expBaseAr = new double*[107127];
+		idBaseAr = new double*[107127];
 
 		for( int i = 0; i < 107127; i++) {
-			expBaseAr[j] = new double[64];
-			idBaseAr[j] = new double[80];
+			expBaseAr[i] = new double[64];
+			idBaseAr[i] = new double[80];
 		}
 
 		// initialize arrays
@@ -146,6 +166,17 @@ public:
 			}
 		}
 
+		expCoefAr = new double[64];
+		shapeCoefAr = new double[80];
+
+		for( int j = 0; j < 64; j++) {
+			expCoefAr[j] = 0.0;
+		}
+
+		for( int j = 0; j < 80; j++) {
+			shapeCoefAr[j] = 0.0;
+		}
+		
 		//Parameters for inner steps
 		expression = new double[107127];
     	shape = new double[107127];
@@ -160,7 +191,6 @@ public:
     }
 
 	~FaceModel() {
-		delete[] meanshapeAr;
 		
 		for( int i = 0; i < 64; i++) {
 			delete[] expBaseAr[i]; 
@@ -172,8 +202,15 @@ public:
 
 		delete[] expBaseAr;
 		delete[] idBaseAr;
+		delete[] meanshapeAr;
 
-		delete[]
+		delete[] expression;
+    	delete[] shape;
+    	delete[] face;
+    	delete[] face_t;
+		
+		delete[] shapeCoefAr;
+		delete[] expCoefAr;
 	}
 	
 	void clear() {
@@ -184,9 +221,14 @@ public:
 		translation = VectorXd::Zero(3);
 	}
 	
-	Eigen::MatrixXd get_mesh() {
-		Eigen::MatrixXd face = (idBase * shapeCoef) + (expBase * expCoef) + meanshape;
+	double* get_mesh() {
+
+		dotProduct(expBaseAr, expCoefAr, 64, expression);
+        dotProduct(idBaseAr, shapeCoefAr, 80, shape);
+        sum_params(expression, shape, meanshapeAr, face);
 		return face;
+		//Eigen::MatrixXd faces = (idBase * shapeCoef) + (expBase * expCoef) + meanshape;
+		//return faces;
 	}
 
 	Eigen::MatrixXd transform(Eigen::MatrixXd face) {
@@ -194,7 +236,7 @@ public:
 	}
 
 	void write_off() {
-
+		/*
 		std::cout << "Writing mesh...\n";
 
 		std::ofstream file;
@@ -214,7 +256,7 @@ public:
 
 		for ( auto t : m_triangles) {
 			file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
-		}
+		}*/
 
 	}
 
@@ -235,6 +277,8 @@ public:
 	double** idBaseAr;
 	double** expBaseAr;
 	double* meanshapeAr;
+	double* shapeCoefAr;
+	double* expCoefAr;
 
 	//Parameters for inner steps
 	double* expression;
