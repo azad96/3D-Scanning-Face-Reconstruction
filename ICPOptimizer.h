@@ -21,7 +21,6 @@ static inline void dotProduct(double** input1, double* input2, const int dim, T*
 		for (int j = 0; j < dim; j++) {
 			sum += input1[i][j] * input2[j];
 		}
-		sum /= 1.0 * dim;
 		output[i] = T(sum);
 	}
 }
@@ -73,15 +72,47 @@ public:
     void apply(T* inputPoint, T* outputPoint) const {
         // pose[0,1,2] is angle-axis rotation.
         // pose[3,4,5] is translation.
+        int num_vertices = 35709;
         const T* rotation = m_array;
         const T* translation = m_array + 3;
 
-        T temp[3];
-        ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
+        for( int i = 0; i < num_vertices; i++) {
+            
+            T point[3];
 
-        outputPoint[0] = temp[0] + translation[0];
-        outputPoint[1] = temp[1] + translation[1];
-        outputPoint[2] = temp[2] + translation[2];
+            point[0] = inputPoint[3*i];
+            point[1] = inputPoint[3*i+1];
+            point[2] = inputPoint[3*i+2];
+
+            T temp[3];
+            ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
+
+            outputPoint[3*i] = temp[0] + translation[0];
+            outputPoint[3*i+1] = temp[1] + translation[1];
+            outputPoint[3*i+2] = temp[2] + translation[2];
+        }
+    }
+
+    static Matrix4d convert() {
+        // pose[0,1,2] is angle-axis rotation.
+        // pose[3,4,5] is translation.
+        
+        double* pose = m_array;
+        double* rotation = pose;
+        double* translation = pose + 3;
+
+        // Convert the rotation from SO3 to matrix notation (with column-major storage).
+        double rotationMatrix[9];
+        ceres::AngleAxisToRotationMatrix(rotation, rotationMatrix);
+
+        // Create the 4x4 transformation matrix.
+        Matrix4f matrix;
+        matrix.setIdentity();
+        matrix(0, 0) = float(rotationMatrix[0]);	matrix(0, 1) = float(rotationMatrix[3]);	matrix(0, 2) = float(rotationMatrix[6]);	matrix(0, 3) = float(translation[0]);
+        matrix(1, 0) = float(rotationMatrix[1]);	matrix(1, 1) = float(rotationMatrix[4]);	matrix(1, 2) = float(rotationMatrix[7]);	matrix(1, 3) = float(translation[1]);
+        matrix(2, 0) = float(rotationMatrix[2]);	matrix(2, 1) = float(rotationMatrix[5]);	matrix(2, 2) = float(rotationMatrix[8]);	matrix(2, 3) = float(translation[2]);
+        matrix(3, 0) = float(0);                    matrix(3, 1) = float(0);                    matrix(3, 2) = float(0);                    matrix(3, 3) = float(1.0);
+        return matrix;
     }
 
     /**
@@ -105,7 +136,7 @@ public:
         matrix(0, 0) = float(rotationMatrix[0]);	matrix(0, 1) = float(rotationMatrix[3]);	matrix(0, 2) = float(rotationMatrix[6]);	matrix(0, 3) = float(translation[0]);
         matrix(1, 0) = float(rotationMatrix[1]);	matrix(1, 1) = float(rotationMatrix[4]);	matrix(1, 2) = float(rotationMatrix[7]);	matrix(1, 3) = float(translation[1]);
         matrix(2, 0) = float(rotationMatrix[2]);	matrix(2, 1) = float(rotationMatrix[5]);	matrix(2, 2) = float(rotationMatrix[8]);	matrix(2, 3) = float(translation[2]);
-
+        matrix(3, 0) = float(0);                    matrix(3, 1) = float(0);                    matrix(3, 2) = float(0);                    matrix(3, 3) = float(1.0);
         return matrix;
     }
 
