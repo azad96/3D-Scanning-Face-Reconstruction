@@ -12,6 +12,12 @@
 #define MINF -std::numeric_limits<float>::infinity()
 #endif
 
+#include <stddef.h>
+#include <limits.h>
+#include <stdexcept>
+#include <limits>
+
+
 struct FreeImage {
 
 	FreeImage();

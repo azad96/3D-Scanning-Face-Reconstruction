@@ -2,215 +2,278 @@
 #include <fstream>
 #include <vector>
 
+#pragma once
+
 #include "Eigen.h"
 
-
-std::vector<unsigned int> readKeypoints(std::string fileToOpen) {
-
-	std::vector<unsigned int> keypoints;
-
-	std::string line;
-	std::ifstream file(fileToOpen);
-	std::string value;
-
-	while (getline(file, line)) {
-
-		std::stringstream lineStringStream(line);
-
-		while (std::getline(lineStringStream, value, ','))
-		{
-			keypoints.push_back(stoi(value));
-		}
-	}
-	return keypoints;
+template <typename T>
+static inline void dotProduct(double** input1, double* input2, const int dim, T* output) {
+    for (int i = 0; i < 107127; i++) {
+        double sum = 0;
+        for (int j = 0; j < dim; j++) {
+            sum += input1[i][j] * input2[j];
+        }
+        output[i] = T(sum);
+    }
 }
 
-std::vector<Triangle> readTriangle(std::string fileToOpen) {
 
-	std::vector<unsigned int> triangle;
-	std::vector<Triangle> m_triangles;
+template <typename T>
+static inline void sum_params(double* input1, double* input2, double* input3, T* output) {
 
-	std::string line;
-	std::ifstream file(fileToOpen);
-	std::string value;
+    for (int i = 0; i < 107127; i++) {
+        output[i] = T(input1[i]) + T(input2[i]) + T(input3[i]);
+    }
+}
 
-	while (getline(file, line)) {
 
-		Triangle t;
-		std::stringstream lineStringStream(line);
-		
-		while (std::getline(lineStringStream, value, ','))
-		{
-			triangle.push_back(stoi(value));
-		}
-		
-		t.idx0 = triangle[0];
-		t.idx1 = triangle[1];
-		t.idx2 = triangle[2];
+static std::vector<unsigned int> readKeypoints(std::string fileToOpen) {
 
-		m_triangles.push_back(t);
+    std::vector<unsigned int> keypoints;
 
-		triangle.clear();
-	}
+    std::string line;
+    std::ifstream file(fileToOpen);
+    std::string value;
 
-	return m_triangles;
+    while (getline(file, line)) {
+
+        std::stringstream lineStringStream(line);
+
+        while (std::getline(lineStringStream, value, ','))
+        {
+            keypoints.push_back(stoi(value));
+        }
+    }
+    return keypoints;
+}
+
+static std::vector<Triangle> readTriangle(std::string fileToOpen) {
+
+    std::vector<unsigned int> triangle;
+    std::vector<Triangle> m_triangles;
+
+    std::string line;
+    std::ifstream file(fileToOpen);
+    std::string value;
+
+    while (getline(file, line)) {
+
+        Triangle t;
+        std::stringstream lineStringStream(line);
+
+        while (std::getline(lineStringStream, value, ','))
+        {
+            triangle.push_back(stoi(value));
+        }
+
+        t.idx0 = triangle[0];
+        t.idx1 = triangle[1];
+        t.idx2 = triangle[2];
+
+        m_triangles.push_back(t);
+
+        triangle.clear();
+    }
+
+    return m_triangles;
 }
 
 // Taken from https://github.com/AleksandarHaber/Save-and-Load-Eigen-Cpp-Matrices-Arrays-to-and-from-CSV-files/blob/master/source_file.cpp
-Eigen::MatrixXd readMatrixCsv(std::string fileToOpen)
+static Eigen::MatrixXd readMatrixCsv(std::string fileToOpen)
 {
-	std::vector<double> matrixEntries;
+    std::vector<double> matrixEntries;
 
-	// in this object we store the data from the matrix
-	std::ifstream matrixDataFile(fileToOpen);
+    // in this object we store the data from the matrix
+    std::ifstream matrixDataFile(fileToOpen);
 
-	// this variable is used to store the row of the matrix that contains commas 
-	std::string matrixRowString;
+    // this variable is used to store the row of the matrix that contains commas
+    std::string matrixRowString;
 
-	// this variable is used to store the matrix entry;
-	std::string matrixEntry;
+    // this variable is used to store the matrix entry;
+    std::string matrixEntry;
 
-	// this variable is used to track the number of rows
-	int matrixRowNumber = 0;
+    // this variable is used to track the number of rows
+    int matrixRowNumber = 0;
 
 
-	while (getline(matrixDataFile, matrixRowString)) // here we read a row by row of matrixDataFile and store every line into the string variable matrixRowString
-	{
-		std::stringstream matrixRowStringStream(matrixRowString); //convert matrixRowString that is a string to a stream variable.
+    while (getline(matrixDataFile, matrixRowString)) // here we read a row by row of matrixDataFile and store every line into the string variable matrixRowString
+    {
+        std::stringstream matrixRowStringStream(matrixRowString); //convert matrixRowString that is a string to a stream variable.
 
-		while (std::getline(matrixRowStringStream, matrixEntry, ',')) // here we read pieces of the stream matrixRowStringStream until every comma, and store the resulting character into the matrixEntry
-		{
-			matrixEntries.push_back(stod(matrixEntry));   //here we convert the string to double and fill in the row vector storing all the matrix entries
-		}
-		matrixRowNumber++; //update the column numbers
-	}
+        while (std::getline(matrixRowStringStream, matrixEntry, ',')) // here we read pieces of the stream matrixRowStringStream until every comma, and store the resulting character into the matrixEntry
+        {
+            matrixEntries.push_back(stod(matrixEntry));   //here we convert the string to double and fill in the row vector storing all the matrix entries
+        }
+        matrixRowNumber++; //update the column numbers
+    }
 
-	return Map<Matrix<double, Dynamic, Dynamic, RowMajor>>(matrixEntries.data(), matrixRowNumber, matrixEntries.size() / matrixRowNumber);
+    return Map<Matrix<double, Dynamic, Dynamic, RowMajor>>(matrixEntries.data(), matrixRowNumber, matrixEntries.size() / matrixRowNumber);
 
 }
 
 class FaceModel {
 public:
-	FaceModel(std::string data_path) {
+    FaceModel(std::string data_path) {
 
-		std::cout << "Data reading..." << std::endl;
+        std::cout << "Data reading..." << std::endl;
 
-		m_idBase = readMatrixCsv(data_path + "/idBase.csv");
-		m_expBase = readMatrixCsv(data_path + "/expBase.csv");
-		m_meanShape = readMatrixCsv(data_path + "/meanshape.csv");
+        idBase = readMatrixCsv(data_path + "/idBase.csv");
+        expBase = readMatrixCsv(data_path + "/expBase.csv");
+        meanshape = readMatrixCsv(data_path + "/meanshape.csv");
 
-		std::cout << m_meanShape.rows() << " " << m_meanShape.cols() << std::endl;
-		m_keyPoints = readKeypoints(data_path + "/kp_inds.csv");
-		
-		std::cout<<m_keyPoints.size()<<std::endl;
-		m_triangles = readTriangle(data_path + "/tri.csv");
 
-		std::cout << "Data reading completed..." << std::endl;
+        // key_points = readKeypoints(data_path + "/kp_inds.csv");
+        m_triangles = readTriangle(data_path + "/tri.csv");
 
-		m_shapeCoef = VectorXd::Zero(80);
-		m_expCoef = VectorXd::Zero(64);
+        std::cout << "Data reading completed..." << std::endl;
 
-		m_rotation = MatrixXd::Identity(3, 3);
-		m_translation = VectorXd::Zero(3);
+        meanshapeAr = new double[107127];
+        expBaseAr = new double*[107127];
+        idBaseAr = new double*[107127];
 
-		updateMesh();
+        for( int i = 0; i < 107127; i++) {
+            expBaseAr[i] = new double[64];
+            idBaseAr[i] = new double[80];
+        }
 
-		createKeyVector();
+        // initialize arrays
+        for( int i = 0; i < 107127; i++) {
+            meanshapeAr[i] = meanshape(i);
+
+            for( int j = 0; j < 64; j++) {
+                expBaseAr[i][j] = expBase(i, j);
+            }
+
+            for( int j = 0; j < 64; j++) {
+                idBaseAr[i][j] = idBase(i, j);
+            }
+        }
+
+        expCoefAr = new double[64];
+        shapeCoefAr = new double[80];
+
+        for( int j = 0; j < 64; j++) {
+            expCoefAr[j] = 0.0;
+        }
+
+        for( int j = 0; j < 80; j++) {
+            shapeCoefAr[j] = 0.0;
+        }
+
+        //Parameters for inner steps
+        expression = new double[107127];
+        shape = new double[107127];
+        face = new double[107127];
+        face_t = new double[107127];
+
+        shapeCoef = VectorXd::Zero(80);
+        expCoef = VectorXd::Zero(64);
+
+        rotation = MatrixXd::Identity(3, 3);
+        translation = VectorXd::Zero(3);
     }
-	
-	void clear() {
-		m_shapeCoef = VectorXd::Zero(80);
-		m_expCoef = VectorXd::Zero(64);
 
-		m_rotation = MatrixXd::Identity(3, 3);
-		m_translation = VectorXd::Zero(3);
-	}
+    ~FaceModel() {
 
-	void initializeRandomExpression() {
-		m_expCoef = VectorXd::Random(64)*2;
-		
-	}
+        for( int i = 0; i < 64; i++) {
+            delete[] expBaseAr[i];
+        }
 
-	void setRotation(MatrixXd rotation) {
-		m_rotation = rotation;
-	}
+        for( int i = 0; i < 80; i++) {
+            delete[] idBaseAr[i];
+        }
 
-	void setTranslation(VectorXd translation) {
-		m_translation = translation;
-	}
+        delete[] expBaseAr;
+        delete[] idBaseAr;
+        delete[] meanshapeAr;
 
-	void createKeyVector(){
-		for(int i = 0 ; i < m_keyPoints.size() ; i++){
-			Vector3f a(m_face(m_keyPoints[i], 0), m_face(m_keyPoints[i], 1), m_face(m_keyPoints[i], 2));
-			m_keyVectors.push_back(a);
-		}
-	}
-	
-	void updateMesh() {
-		m_face = (m_idBase * m_shapeCoef) +(m_expBase * m_expCoef) + m_meanShape;
-		m_face = m_face.reshaped<RowMajor>(35709, 3);
+        delete[] expression;
+        delete[] shape;
+        delete[] face;
+        delete[] face_t;
 
-	}
+        delete[] shapeCoefAr;
+        delete[] expCoefAr;
+    }
 
-	void transform() {
-		int N = m_face.rows();
-		std::cout << m_face.rows() << " " << m_face.cols() << std::endl;
+    void clear() {
+        shapeCoef = VectorXd::Zero(80);
+        expCoef = VectorXd::Zero(64);
 
-		Eigen::Matrix4d Trans; 
-		Trans.setIdentity();   
-		Trans.block<3,3>(0,0) = m_rotation;
-		Trans.block<3,1>(0,3) = m_translation;
+        rotation = MatrixXd::Identity(3, 3);
+        translation = VectorXd::Zero(3);
+    }
 
-		Eigen::VectorXd oneColumn= VectorXd::Zero(N);
-		oneColumn.setOnes();
-		m_face.conservativeResize(N, 4);
-		m_face.col(3) = oneColumn;
+    double* get_mesh() {
 
-		m_face = (m_face * Trans).block(0, 0, N, 3);
-		std::cout << m_face.rows() << " " << m_face.cols() << std::endl;
-		
-		// m_face = (m_rotation * m_face.transpose()).colwise() + m_translation;
-		// m_face = m_face.transposeInPlace();
-	}
+        dotProduct(expBaseAr, expCoefAr, 64, expression);
+        dotProduct(idBaseAr, shapeCoefAr, 80, shape);
+        sum_params(expression, shape, meanshapeAr, face);
+        return face;
+    }
 
-	void write_off(std::string filename) {
-		std::cout << "Writing mesh...\n";
 
-		std::ofstream file;
-		
-		Eigen::MatrixXd mesh = m_face.reshaped<RowMajor>(35709, 3);
+    Eigen::MatrixXd transform(Eigen::MatrixXd face) {
+        return face * rotation;
+    }
 
-		std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
+    Eigen::MatrixXd getAsEigenMatrix(double* face) {
+        Eigen::MatrixXd result(35709, 3);
+        for(int i = 0; i < 35709; i++) {
+            for(int j = 0; j < 3; j++) {
+                result(i,j) = face[i * 3 + j];
+            }
+        }
+        return result;
+    }
 
-		
-		file.open(filename.c_str());
-		file << "OFF\n";
-		file << "35709 70789 0\n";
+    void write_off(std::string filename) {
 
-		for (int i = 0; i < mesh.rows(); i++) 
-			file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
+        std::cout << "Writing mesh...\n";
+        std::ofstream file;
 
-		for ( auto t : m_triangles) 
-			file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
-		
-	}
+        Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
+        std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
+
+        file.open(filename.c_str());
+        file << "OFF\n";
+        file << "35709 70789 0\n";
+        for (int i = 0; i < mesh.rows(); i++) {
+            file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
+        }
+        for ( auto t : m_triangles) {
+            file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
+        }
+
+    }
+
+
 
 
 public:
-	std::vector<Vector3f> m_keyVectors;
-
-private:
-    Eigen::MatrixXd m_idBase;
-    Eigen::MatrixXd m_expBase;
+    Eigen::MatrixXd idBase;
+    Eigen::MatrixXd expBase;
     std::vector<Triangle> m_triangles;
-    Eigen::MatrixXd m_meanShape;
-    std::vector<unsigned int> m_keyPoints;
+    Eigen::MatrixXd meanshape;
+    std::vector<unsigned int> key_points;
 
-	Eigen::VectorXd m_shapeCoef;
-	Eigen::VectorXd m_expCoef;
+    Eigen::VectorXd shapeCoef;
+    Eigen::VectorXd expCoef;
 
-	Eigen::MatrixXd m_rotation;
-	Eigen::VectorXd m_translation;
+    Eigen::MatrixXd rotation;
+    Eigen::VectorXd translation;
 
-	Eigen::MatrixXd m_face;
+    //Store in array for ceres usage
+    double** idBaseAr;
+    double** expBaseAr;
+    double* meanshapeAr;
+    double* shapeCoefAr;
+    double* expCoefAr;
+
+    //Parameters for inner steps
+    double* expression;
+    double* shape;
+    double* face;
+    double* face_t;
+
 };
