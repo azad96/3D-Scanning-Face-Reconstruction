@@ -1,0 +1,3 @@
+/Users/azadb/Personal/3D-Scanning/Face-Reconstruction/build/CMakeFiles/face_reconstruction.dir
+/Users/azadb/Personal/3D-Scanning/Face-Reconstruction/build/CMakeFiles/edit_cache.dir
+/Users/azadb/Personal/3D-Scanning/Face-Reconstruction/build/CMakeFiles/rebuild_cache.dir
