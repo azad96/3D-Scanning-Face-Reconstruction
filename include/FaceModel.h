@@ -240,22 +240,24 @@ public:
 		return vertices;
 	}
 
-    void write_off(std::string filename) const {
-        // std::cout << "Writing mesh...\n";
-        // std::ofstream file;
+    void write_off(std::string filename, double* shapeCoef, double* expCoef) const {
+        update_face(shapeCoef, expCoef);
 
-        // Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
-        // std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
+        std::cout << "Writing mesh...\n";
+        std::ofstream file;
 
-        // file.open(filename.c_str());
-        // file << "OFF\n";
-        // file << "35709 70789 0\n";
-        // for (int i = 0; i < mesh.rows(); i++) {
-        //     file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
-        // }
-        // for ( auto t : m_triangles) {
-        //     file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
-        // }
+        Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
+        std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
+
+        file.open(filename.c_str());
+        file << "OFF\n";
+        file << "35709 70789 0\n";
+        for (int i = 0; i < mesh.rows(); i++) {
+            file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
+        }
+        for ( auto t : m_triangles) {
+            file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
+        }
     }
 
 public:
