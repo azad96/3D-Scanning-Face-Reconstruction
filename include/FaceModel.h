@@ -149,25 +149,12 @@ public:
             }
         }
 
-        expCoefAr = new double[64];
-        shapeCoefAr = new double[80];
-
-        for( int j = 0; j < 64; j++) {
-            expCoefAr[j] = 0.0;
-        }
-
-        for( int j = 0; j < 80; j++) {
-            shapeCoefAr[j] = 0.0;
-        }
 
         //Parameters for inner steps
         expression = new double[107127];
         shape = new double[107127];
         face = new double[107127];
         face_t = new double[107127];
-
-        shapeCoef = VectorXd::Zero(80);
-        expCoef = VectorXd::Zero(64);
 
         rotation = MatrixXd::Identity(3, 3);
         translation = VectorXd::Zero(3);
@@ -191,24 +178,15 @@ public:
         delete[] shape;
         delete[] face;
         delete[] face_t;
-
-        delete[] shapeCoefAr;
-        delete[] expCoefAr;
     }
 
     void clear() {
-        shapeCoef = VectorXd::Zero(80);
-        expCoef = VectorXd::Zero(64);
-
         rotation = MatrixXd::Identity(3, 3);
         translation = VectorXd::Zero(3);
     }
 
+    
     double* get_mesh() {
-
-        dotProduct(expBaseAr, expCoefAr, 64, expression);
-        dotProduct(idBaseAr, shapeCoefAr, 80, shape);
-        sum_params(expression, shape, meanshapeAr, face);
         return face;
     }
 
@@ -226,6 +204,41 @@ public:
         }
         return result;
     }
+
+    void update_face(double* shapeCoef, double* expCoef) {
+		double* expression =  new T[107127];
+		double* shape = new T[107127];
+
+		for (int i = 0; i < 107127; i++) {
+			T sum = T(0.0);
+			for (int j = 0; j < 64; j++) {
+				sum += model.expBaseAr[i][j] * expCoef[j];
+			}
+			expression[i] = T(sum);
+		}
+
+		for (int i = 0; i < 107127; i++) {
+			double sum = 0.0;
+			for (int j = 0; j < 64; j++) {
+				sum += model.idBaseAr[i][j] * shapeCoef[j];
+			}
+			shape[i] = sum;
+		}
+
+		for (int i = 0; i < 107127; i++) {
+			face[i] = expression[i] + shape[i] + model.meanshapeAr[i];
+		}
+
+		vertices.clear();
+
+		for( int i = 0; i < 107127; i++) {
+			vertices.push_back(Eigen::Vector3d(face[3*i], face[3*i+1], face[3*i+2]));
+		}
+	}
+
+	vector<Eigen::Vector3d> get_vertices() {
+		return vertices;
+	}
 
     void write_off(std::string filename) {
 
@@ -256,22 +269,19 @@ public:
     std::vector<Triangle> m_triangles;
     Eigen::MatrixXd meanshape;
     std::vector<unsigned int> key_points;
+	std::vector<Eigen::Vector3d> vertices;
+	Eigen::VectorXd faces;
 
-    Eigen::VectorXd shapeCoef;
-    Eigen::VectorXd expCoef;
+	Eigen::MatrixXd rotation;
+	Eigen::VectorXd translation;
 
-    Eigen::MatrixXd rotation;
-    Eigen::VectorXd translation;
+	//Store in array for ceres usage
+	double** idBaseAr;
+	double** expBaseAr;
+	double* meanshapeAr;
 
-    //Store in array for ceres usage
-    double** idBaseAr;
-    double** expBaseAr;
-    double* meanshapeAr;
-    double* shapeCoefAr;
-    double* expCoefAr;
-
-    //Parameters for inner steps
-    double* expression;
+	//Parameters for inner steps
+	double* expression;
     double* shape;
     double* face;
     double* face_t;
