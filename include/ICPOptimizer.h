@@ -5,7 +5,6 @@
 
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
-#include </home/umur/Documents/TUM/3Dscan&motion/Libs/flann/flann.hpp>
 
 #include "SimpleMesh.h"
 #include "NearestNeighbor.h"
@@ -15,36 +14,20 @@
 
 
 template <typename T>
-static inline void dotFace_ceres(const T* expCoef, const T* shapeCoef, T* face) {
-
-    FaceModel model("../data");
-    T* expression =  new T[107127];
-    T* shape = new T[107127];
-
-    for (int i = 0; i < 107127; i++) {
-        T sum = T(0.0);
-        for (int j = 0; j < 64; j++) {
-            sum += model.expBaseAr[i][j] * expCoef[j];
-        }
-        expression[i] = T(sum);
+static inline void dotFace_ceres(const T* idBaseRow, const T* expBaseRow, const T& meanShapeVal, const T* expCoef, const T* shapeCoef, T &face) {
+    T sum = T(0.0);
+    for (int j = 0; j < 64; j++) {
+        sum += expBaseRow[j] * expCoef[j];
     }
+    T expression = T(sum);
 
-    for (int i = 0; i < 107127; i++) {
-        T sum = T(0.0);
-        for (int j = 0; j < 64; j++) {
-            sum += model.idBaseAr[i][j] * shapeCoef[j];
-        }
-        shape[i] = T(sum);
+    sum = T(0.0);
+    for (int j = 0; j < 80; j++) {
+        sum += idBaseRow[j] * shapeCoef[j];
     }
+    T shape = T(sum);
 
-    for (int i = 0; i < 107127; i++) {
-        face[i] = expression[i] + shape[i] + model.meanshapeAr[i];
-    }
-
-
-    delete [] expression;
-    delete [] shape;
-
+    face = expression + shape + meanShapeVal;
 }
 
 
@@ -58,14 +41,11 @@ public:
     { }
 
     void setZero() {
-
         for (int i = 0; i < 64; ++i)
             m_arrayExpCoef[i] = T(0);
 
         for (int i = 0; i < 80; ++i)
             m_arrayShapeCoef[i] = T(0);
-
-
     }
 
     T* getExpCoeff() const {
@@ -81,23 +61,24 @@ public:
  * Important: The memory for both 3D points (input and output) needs to be reserved (i.e. on the stack)
  * beforehand).
  */
-    void apply( const int inputIndex, T* outputPoint) const {
-    //void apply( T* outputPoint) const {
-        // pose[0,1,2] is angle-axis rotation.
-        // pose[3,4,5] is translation.
+    void apply(FaceModel* faceModel, const int inputIndex, T* outputPoint) const {
         const T* expCoef = m_arrayExpCoef;
         const T* shapeCoef = m_arrayShapeCoef;
 
-        T* faces = new T[107127];
+        // T faces[3];
+        T face1,face2,face3;
 
-        dotFace_ceres(expCoef, shapeCoef, faces);
+        dotFace_ceres(faceModel->idBaseAr[3*inputIndex], faceModel->expBaseAr[3*inputIndex], faceModel->meanshapeAr[3*inputIndex], expCoef, shapeCoef, face1);
+        dotFace_ceres(faceModel->idBaseAr[3*inputIndex+1], faceModel->expBaseAr[3*inputIndex+1], faceModel->meanshapeAr[3*inputIndex+1], expCoef, shapeCoef, face2);
+        dotFace_ceres(faceModel->idBaseAr[3*inputIndex+2], faceModel->expBaseAr[3*inputIndex+2], faceModel->meanshapeAr[3*inputIndex+2], expCoef, shapeCoef, face3);
 
-        outputPoint[0] = faces[3*inputIndex + 0];
-        outputPoint[1] = faces[3*inputIndex + 1];
-        outputPoint[2] = faces[3*inputIndex + 2];
-        delete faces;
+        // outputPoint[0] = faces[0];
+        // outputPoint[1] = faces[1];
+        // outputPoint[2] = faces[2];
+        outputPoint[0] = face1;
+        outputPoint[1] = face2;
+        outputPoint[2] = face3;
     }
-
 
 private:
     T* m_arrayExpCoef;
@@ -105,25 +86,23 @@ private:
 };
 
 
-
 class MyCustomConstraint {
 public:
-    MyCustomConstraint(const int sourcePointIndex, const Vector3f& targetPoint, const float weight) :
+    MyCustomConstraint(FaceModel* faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) :
+            m_pFaceModel{ faceModel },
             m_sourcePointIndex{ sourcePointIndex },
             m_targetPoint{ targetPoint },
             m_weight{ weight }
     { }
 
     template <typename T>
-   bool operator()(const T* const expCoeff, const T* const shapeCoeff, T* residuals) const {
-
-
-        auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<T>(const_cast<T*>(expCoeff), const_cast<T*>(shapeCoeff));
-
-
-
+    bool operator()(const T* const expCoeff, const T* const shapeCoeff, T* residuals) const {
+        auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<T>(
+            const_cast<T*>(expCoeff), 
+            const_cast<T*>(shapeCoeff)
+            );
         T p_s_tilda[3];
-        expShapeCoeffIncrement.apply(m_sourcePointIndex, p_s_tilda);
+        expShapeCoeffIncrement.apply(m_pFaceModel, m_sourcePointIndex, p_s_tilda);
 
         residuals[0] = T(LAMBDA) * T(m_weight) * (p_s_tilda[0] - T(m_targetPoint[0]));
         residuals[1] = T(LAMBDA) * T(m_weight) * (p_s_tilda[1] - T(m_targetPoint[1]));
@@ -132,13 +111,14 @@ public:
         return true;
     }
 
-    static ceres::CostFunction* create(const int sourcePointIndex, const Vector3f& targetPoint, const float weight) {
+    static ceres::CostFunction* create(FaceModel* faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) {
         return new ceres::AutoDiffCostFunction<MyCustomConstraint, 3, 64, 80>(
-                new MyCustomConstraint(sourcePointIndex, targetPoint, weight)
+                new MyCustomConstraint(faceModel, sourcePointIndex, targetPoint, weight)
         );
     }
 
 protected:
+    FaceModel* m_pFaceModel;
     const int m_sourcePointIndex;
     const Vector3f m_targetPoint;
     const float m_weight;
@@ -161,18 +141,16 @@ public:
     }
 
 
-
     void setNbOfIterations(unsigned nIterations) {
         m_nIterations = nIterations;
     }
 
     virtual void estimateExpShapeCoeffs(const PointCloud& target) = 0;
 
+
 protected:
     unsigned m_nIterations;
     std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch;
-
-
 
     void pruneCorrespondences(const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, std::vector<Match>& matches) {
         const unsigned nPoints = sourceNormals.size();
@@ -203,14 +181,13 @@ public:
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     virtual void estimateExpShapeCoeffs(const PointCloud &target) override {
+
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
 
         // The initial estimate can be given as an argument.
-        FaceModel faceModel("../data");
-        double *estimatedShapeCoef = faceModel.expCoefAr;
-
-        double *estimatedExprCoef = faceModel.shapeCoefAr;
+        double *estimatedExprCoef = new double[64];
+        double *estimatedShapeCoef = new double[80];
 
         double incrementArrayExp[64];
         double incrementArrayShape[80];
@@ -222,7 +199,6 @@ public:
             // Compute the matches.
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
-
 
             faceModel.write_off("transformed_model.off");
             SimpleMesh faceMesh;
@@ -259,12 +235,11 @@ public:
             //std::cout << summary.FullReport() << std::endl;
 
             //get updated optim. params
-            estimatedExprCoef = expShapeCoeffIncrement.getExpCoeff();
             estimatedShapeCoef = expShapeCoeffIncrement.getShapeCoeff();
+            estimatedExprCoef = expShapeCoeffIncrement.getExpCoeff();
 
             //update face model with these params
-            faceModel.expCoefAr = estimatedExprCoef;
-            faceModel.shapeCoefAr = estimatedShapeCoef;
+            faceModel.update_face(estimatedShapeCoef, estimatedExprCoef);
 
             std::cout << "Optimization iteration done." << std::endl;
         }
@@ -272,8 +247,9 @@ public:
 
     }
 
-
 private:
+    FaceModel faceModel;
+
     void configureSolver(ceres::Solver::Options &options) {
         // Ceres options.
         options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
@@ -283,9 +259,6 @@ private:
         options.max_num_iterations = 1;
         options.num_threads = 16;
     }
-
-
-
 
     void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,
                                   const std::vector<Match> matches,
@@ -299,7 +272,7 @@ private:
 
                 const int sourcePointIndex = match.idx;
                 problem.AddResidualBlock(
-                        MyCustomConstraint::create(sourcePointIndex, targetPoint, match.weight),
+                        MyCustomConstraint::create(const_cast<FaceModel*>(&faceModel), sourcePointIndex, targetPoint, match.weight),
                         nullptr,
                         expShapeCoeffIncrement.getExpCoeff(),
                         expShapeCoeffIncrement.getShapeCoeff()

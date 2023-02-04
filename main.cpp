@@ -54,8 +54,8 @@ void debugCorrespondenceMatching() {
 
 int alignMeshWithICP() {
 	// Load the source and target mesh.
-	const std::string filenameSource = std::string("neutral.off");
-	const std::string filenameTarget = std::string("random.off");
+	const std::string filenameSource = std::string("../sample_face/neutral.off");
+	const std::string filenameTarget = std::string("../sample_face/random.off");
 
 	SimpleMesh sourceMesh;
 	if (!sourceMesh.loadMesh(filenameSource)) {
@@ -86,7 +86,7 @@ int alignMeshWithICP() {
 }
 
 int main() {
-	FaceModel model("../data");
+	// FaceModel model;
 
 //    VectorXd random = VectorXd::Random(64)*2;
 //    model.expCoefAr = random.data();

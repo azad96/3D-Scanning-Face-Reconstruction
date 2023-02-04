@@ -113,10 +113,10 @@ static Eigen::MatrixXd readMatrixCsv(std::string fileToOpen)
 
 class FaceModel {
 public:
-    FaceModel(std::string data_path) {
+    FaceModel() {
 
         std::cout << "Data reading..." << std::endl;
-
+        std::string data_path = "../data";
         idBase = readMatrixCsv(data_path + "/idBase.csv");
         expBase = readMatrixCsv(data_path + "/expBase.csv");
         meanshape = readMatrixCsv(data_path + "/meanshape.csv");
@@ -206,27 +206,27 @@ public:
     }
 
     void update_face(double* shapeCoef, double* expCoef) {
-		double* expression =  new T[107127];
-		double* shape = new T[107127];
-
-		for (int i = 0; i < 107127; i++) {
-			T sum = T(0.0);
-			for (int j = 0; j < 64; j++) {
-				sum += model.expBaseAr[i][j] * expCoef[j];
-			}
-			expression[i] = T(sum);
-		}
+		double* expression =  new double[107127];
+		double* shape = new double[107127];
 
 		for (int i = 0; i < 107127; i++) {
 			double sum = 0.0;
 			for (int j = 0; j < 64; j++) {
-				sum += model.idBaseAr[i][j] * shapeCoef[j];
+				sum += expBaseAr[i][j] * expCoef[j];
+			}
+			expression[i] = sum;
+		}
+
+		for (int i = 0; i < 107127; i++) {
+			double sum = 0.0;
+			for (int j = 0; j < 80; j++) {
+				sum += idBaseAr[i][j] * shapeCoef[j];
 			}
 			shape[i] = sum;
 		}
 
 		for (int i = 0; i < 107127; i++) {
-			face[i] = expression[i] + shape[i] + model.meanshapeAr[i];
+			face[i] = expression[i] + shape[i] + meanshapeAr[i];
 		}
 
 		vertices.clear();
@@ -236,32 +236,27 @@ public:
 		}
 	}
 
-	vector<Eigen::Vector3d> get_vertices() {
+	std::vector<Eigen::Vector3d> get_vertices() {
 		return vertices;
 	}
 
-    void write_off(std::string filename) {
+    void write_off(std::string filename) const {
+        // std::cout << "Writing mesh...\n";
+        // std::ofstream file;
 
-        std::cout << "Writing mesh...\n";
-        std::ofstream file;
+        // Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
+        // std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
 
-        Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
-        std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
-
-        file.open(filename.c_str());
-        file << "OFF\n";
-        file << "35709 70789 0\n";
-        for (int i = 0; i < mesh.rows(); i++) {
-            file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
-        }
-        for ( auto t : m_triangles) {
-            file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
-        }
-
+        // file.open(filename.c_str());
+        // file << "OFF\n";
+        // file << "35709 70789 0\n";
+        // for (int i = 0; i < mesh.rows(); i++) {
+        //     file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
+        // }
+        // for ( auto t : m_triangles) {
+        //     file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
+        // }
     }
-
-
-
 
 public:
     Eigen::MatrixXd idBase;
