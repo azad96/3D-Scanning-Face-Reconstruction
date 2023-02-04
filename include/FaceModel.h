@@ -240,7 +240,7 @@ public:
 		return vertices;
 	}
 
-    void write_off(std::string filename, double* shapeCoef, double* expCoef) const {
+    void write_off(std::string filename, double* shapeCoef, double* expCoef) {
         update_face(shapeCoef, expCoef);
 
         std::cout << "Writing mesh...\n";

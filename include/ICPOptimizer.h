@@ -64,13 +64,13 @@ public:
  * Important: The memory for both 3D points (input and output) needs to be reserved (i.e. on the stack)
  * beforehand).
  */
-    void apply(FaceModel* faceModel, const int inputIndex, T* outputPoint) const {
+    void apply(const int inputIndex, T* outputPoint) const {
         const T* expCoef = m_arrayExpCoef;
         const T* shapeCoef = m_arrayShapeCoef;
 
         // T faces[3];
         T face1,face2,face3;
-        dotFace_ceres(m_idBaseRow[3*inputIndex], m_expBaseRow[3*inputIndex], m_meanShapeVal[3*inputIndex], expCoef, shapeCoef, face2);
+        dotFace_ceres(m_idBaseRow[3*inputIndex], m_expBaseRow[3*inputIndex], m_meanShapeVal[3*inputIndex], expCoef, shapeCoef, face1);
         dotFace_ceres(m_idBaseRow[3*inputIndex+1], m_expBaseRow[3*inputIndex+1], m_meanShapeVal[3*inputIndex+1], expCoef, shapeCoef, face2);
         dotFace_ceres(m_idBaseRow[3*inputIndex+2], m_expBaseRow[3*inputIndex+2], m_meanShapeVal[3*inputIndex+2], expCoef, shapeCoef, face3);
 
@@ -138,7 +138,7 @@ public:
             const_cast<T*>(shapeCoeff)
             );
         T p_s_tilda[3];
-        expShapeCoeffIncrement.apply(m_pFaceModel, m_sourcePointIndex, p_s_tilda);
+        expShapeCoeffIncrement.apply(m_sourcePointIndex, p_s_tilda);
 
         residuals[0] = T(LAMBDA) * T(m_weight) * (p_s_tilda[0] - T(m_targetPoint[0]));
         residuals[1] = T(LAMBDA) * T(m_weight) * (p_s_tilda[1] - T(m_targetPoint[1]));
@@ -222,8 +222,8 @@ public:
         m_nearestNeighborSearch->buildIndex(target.getPoints());
 
         // The initial estimate can be given as an argument.
-        double *estimatedExprCoef = new double[64];
         double *estimatedShapeCoef = new double[80];
+        double *estimatedExprCoef = new double[64];
 
         double incrementArrayExp[64];
         double incrementArrayShape[80];
@@ -237,12 +237,16 @@ public:
         );
         expShapeCoeffIncrement.setZero();
 
+        
         for (int i = 0; i < m_nIterations; ++i) {
             // Compute the matches.
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
-            faceModel.write_off("../sample_face/transformed_model.off");
+            faceModel.write_off("../sample_face/transformed_model.off", 
+                                expShapeCoeffIncrement.getShapeCoeff(),
+                                expShapeCoeffIncrement.getExpCoeff());
+            exit(0);
             SimpleMesh faceMesh;
             if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
                 std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
@@ -281,11 +285,13 @@ public:
             estimatedExprCoef = expShapeCoeffIncrement.getExpCoeff();
 
             //update face model with these params
-            faceModel.update_face(estimatedShapeCoef, estimatedExprCoef);
+            // faceModel.update_face(estimatedShapeCoef, estimatedExprCoef);
 
             std::cout << "Optimization iteration done." << std::endl;
         }
-        faceModel.write_off("../sample_face/result.off");
+        faceModel.write_off("../sample_face/result.off",
+                            expShapeCoeffIncrement.getShapeCoeff(),
+                            expShapeCoeffIncrement.getExpCoeff());
     }
 
 private:
@@ -298,7 +304,7 @@ private:
         options.linear_solver_type = ceres::DENSE_QR;
         options.minimizer_progress_to_stdout = 1;
         options.max_num_iterations = 1;
-        options.num_threads = 16;
+        options.num_threads = 8;
     }
 
     void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,
