@@ -145,6 +145,47 @@ protected:
     const float LAMBDA = 0.1f;
 };
 
+class PointToPlaneConstr {
+public:
+    PointToPlaneConstr(const int sourcePointIndex, const Vector3f& targetPoint, const Vector3f& targetNormal, const float weight) :
+            m_sourcePointIndex{ sourcePointIndex },
+            m_targetPoint{ targetPoint },
+            m_targetNormal{ targetNormal},
+            m_weight{ weight }
+    { }
+
+    template <typename T>
+   bool operator()(const T* const expCoeff, const T* const shapeCoeff, T* residuals) const {
+
+
+        auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<T>(const_cast<T*>(expCoeff), const_cast<T*>(shapeCoeff));
+
+
+
+        T p_s_tilda[3];
+        expShapeCoeffIncrement.apply(m_sourcePointIndex, p_s_tilda);
+
+        residuals[0] = T(LAMBDA) * T(m_weight) * T(m_targetNormal[0]) * (p_s_tilda[0] - T(m_targetPoint[0]));
+        residuals[0] += T(LAMBDA) * T(m_weight) * T(m_targetNormal[1]) * (p_s_tilda[1] - T(m_targetPoint[1]));
+        residuals[0] += T(LAMBDA) * T(m_weight) * T(m_targetNormal[2]) * (p_s_tilda[2] - T(m_targetPoint[2]));
+
+        return true;
+    }
+
+    static ceres::CostFunction* create(const int sourcePointIndex, const Vector3f& targetPoint, const Vector3f& targetNormal, const float weight) {
+        return new ceres::AutoDiffCostFunction<PointToPlaneConstr, 3, 64, 80>(
+                new PointToPlaneConstr(sourcePointIndex, targetPoint, weight)
+        );
+    }
+
+protected:
+    const int m_sourcePointIndex;
+    const Vector3f m_targetPoint;
+    const Vector3f m_targetNormal;
+    const float m_weight;
+    const float LAMBDA = 0.1f;
+};
+
 
 /**
  * ICP optimizer - Abstract Base Class
@@ -246,7 +287,7 @@ public:
             std::cout << "match count:" << matchCtr << std::endl;
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
-            customPrepareConstraints(target.getPoints(), matches, expShapeCoeffIncrement, problem);
+            customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -288,6 +329,7 @@ private:
 
 
     void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,
+                                  const std::vector<Vector3f> &targetNormals,
                                   const std::vector<Match> matches,
                                   const ExpShapeCoeffIncrement<double> &expShapeCoeffIncrement,
                                   ceres::Problem &problem) const {
@@ -296,7 +338,6 @@ private:
             const auto match = matches[i];
             if (match.idx >= 0) {
                 const auto &targetPoint = targetPoints[match.idx];
-
                 const int sourcePointIndex = match.idx;
                 problem.AddResidualBlock(
                         MyCustomConstraint::create(sourcePointIndex, targetPoint, match.weight),
@@ -304,6 +345,20 @@ private:
                         expShapeCoeffIncrement.getExpCoeff(),
                         expShapeCoeffIncrement.getShapeCoeff()
                 );
+                
+                bool m_bUsePointToPlaneConstraints = true;
+                if (m_bUsePointToPlaneConstraints) {
+                    const auto& targetNormal = targetNormals[match.idx];
+
+                    if (!targetNormal.allFinite())
+                        continue;
+
+                    problem.AddResidualBlock(
+                        PointToPlaneConstr::create(sourcePointIndex, targetPoint, targetNormal, match.weight),
+                        nullptr, 
+                        poseIncrement.getData()
+                    );
+                }
             }
         }
     }
