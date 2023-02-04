@@ -35,7 +35,10 @@ static inline void dotFace_ceres(const T* idBaseRow, const T* expBaseRow, const 
 template <typename T>
 class ExpShapeCoeffIncrement {
 public:
-    explicit ExpShapeCoeffIncrement(T* const arrayExpCoef, T* const arrayShapeCoef) :
+    explicit ExpShapeCoeffIncrement(T** const idBaseRow, T** const expBaseRow, T* const meanShapeVal, T* const arrayExpCoef, T* const arrayShapeCoef) :
+    m_idBaseRow{ idBaseRow },
+    m_expBaseRow{ expBaseRow },
+    m_meanShapeVal{ meanShapeVal },
     m_arrayExpCoef{ arrayExpCoef },
     m_arrayShapeCoef{ arrayShapeCoef }
     { }
@@ -67,10 +70,31 @@ public:
 
         // T faces[3];
         T face1,face2,face3;
+        dotFace_ceres(m_idBaseRow[3*inputIndex], m_expBaseRow[3*inputIndex], m_meanShapeVal[3*inputIndex], expCoef, shapeCoef, face2);
+        dotFace_ceres(m_idBaseRow[3*inputIndex+1], m_expBaseRow[3*inputIndex+1], m_meanShapeVal[3*inputIndex+1], expCoef, shapeCoef, face2);
+        dotFace_ceres(m_idBaseRow[3*inputIndex+2], m_expBaseRow[3*inputIndex+2], m_meanShapeVal[3*inputIndex+2], expCoef, shapeCoef, face3);
 
-        dotFace_ceres(faceModel->idBaseAr[3*inputIndex], faceModel->expBaseAr[3*inputIndex], faceModel->meanshapeAr[3*inputIndex], expCoef, shapeCoef, face1);
-        dotFace_ceres(faceModel->idBaseAr[3*inputIndex+1], faceModel->expBaseAr[3*inputIndex+1], faceModel->meanshapeAr[3*inputIndex+1], expCoef, shapeCoef, face2);
-        dotFace_ceres(faceModel->idBaseAr[3*inputIndex+2], faceModel->expBaseAr[3*inputIndex+2], faceModel->meanshapeAr[3*inputIndex+2], expCoef, shapeCoef, face3);
+        // dotFace_ceres(
+        //     const_cast<T*>(faceModel->idBaseAr[3*inputIndex]), 
+        //     const_cast<T*>(faceModel->expBaseAr[3*inputIndex]), 
+        //     const_cast<T*>(faceModel->meanshapeAr[3*inputIndex]), 
+        //     expCoef, shapeCoef, face1);
+            
+        // dotFace_ceres(
+        //     const_cast<T*>(faceModel->idBaseAr[3*inputIndex+1]), 
+        //     const_cast<T*>(faceModel->expBaseAr[3*inputIndex+1]), 
+        //     const_cast<T*>(faceModel->meanshapeAr[3*inputIndex+1]), 
+        //     expCoef, shapeCoef, face2);
+
+        // dotFace_ceres(
+        //     const_cast<T*>(faceModel->idBaseAr[3*inputIndex+2]), 
+        //     const_cast<T*>(faceModel->expBaseAr[3*inputIndex+2]), 
+        //     const_cast<T*>(faceModel->meanshapeAr[3*inputIndex+2]), 
+        //     expCoef, shapeCoef, face3);
+
+        // dotFace_ceres(faceModel->idBaseAr[3*inputIndex], faceModel->expBaseAr[3*inputIndex], faceModel->meanshapeAr[3*inputIndex], expCoef, shapeCoef, face1);
+        // dotFace_ceres(faceModel->idBaseAr[3*inputIndex+1], faceModel->expBaseAr[3*inputIndex+1], faceModel->meanshapeAr[3*inputIndex+1], expCoef, shapeCoef, face2);
+        // dotFace_ceres(faceModel->idBaseAr[3*inputIndex+2], faceModel->expBaseAr[3*inputIndex+2], faceModel->meanshapeAr[3*inputIndex+2], expCoef, shapeCoef, face3);
 
         // outputPoint[0] = faces[0];
         // outputPoint[1] = faces[1];
@@ -81,6 +105,9 @@ public:
     }
 
 private:
+    T** m_idBaseRow;
+    T** m_expBaseRow;
+    T* m_meanShapeVal;
     T* m_arrayExpCoef;
     T* m_arrayShapeCoef;
 };
@@ -98,7 +125,16 @@ public:
     template <typename T>
     bool operator()(const T* const expCoeff, const T* const shapeCoeff, T* residuals) const {
         auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<T>(
-            const_cast<T*>(expCoeff), 
+            // const_cast<T*>(m_pFaceModel->idBaseAr[m_sourcePointIndex]),
+            // const_cast<T*>(m_pFaceModel->expBaseAr[m_sourcePointIndex]),
+            // const_cast<T*>(&m_pFaceModel->meanshapeAr[m_sourcePointIndex]),
+            // const_cast<T**>(m_pFaceModel->idBaseAr),
+            // const_cast<T**>(m_pFaceModel->expBaseAr),
+            // const_cast<T*>(m_pFaceModel->meanshapeAr),
+            (T**)(m_pFaceModel->idBaseAr),
+            (T**)(m_pFaceModel->expBaseAr),
+            (T*)(m_pFaceModel->meanshapeAr),
+            const_cast<T*>(expCoeff),
             const_cast<T*>(shapeCoeff)
             );
         T p_s_tilda[3];
@@ -192,7 +228,13 @@ public:
         double incrementArrayExp[64];
         double incrementArrayShape[80];
 
-        auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<double>(incrementArrayExp, incrementArrayShape);
+        auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<double>(
+            faceModel.idBaseAr,
+            faceModel.expBaseAr,
+            faceModel.meanshapeAr,
+            incrementArrayExp, 
+            incrementArrayShape
+        );
         expShapeCoeffIncrement.setZero();
 
         for (int i = 0; i < m_nIterations; ++i) {
@@ -200,9 +242,9 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
-            faceModel.write_off("transformed_model.off");
+            faceModel.write_off("../sample_face/transformed_model.off");
             SimpleMesh faceMesh;
-            if (!faceMesh.loadMesh("transformed_model.off")) {
+            if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
                 std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
             }
 
@@ -243,8 +285,7 @@ public:
 
             std::cout << "Optimization iteration done." << std::endl;
         }
-        faceModel.write_off("result.off");
-
+        faceModel.write_off("../sample_face/result.off");
     }
 
 private:
