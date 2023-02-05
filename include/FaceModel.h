@@ -47,6 +47,7 @@ static std::vector<unsigned int> readKeypoints(std::string fileToOpen) {
     return keypoints;
 }
 
+
 static std::vector<Triangle> readTriangle(std::string fileToOpen) {
 
     std::vector<unsigned int> triangle;
@@ -77,6 +78,7 @@ static std::vector<Triangle> readTriangle(std::string fileToOpen) {
 
     return m_triangles;
 }
+
 
 // Taken from https://github.com/AleksandarHaber/Save-and-Load-Eigen-Cpp-Matrices-Arrays-to-and-from-CSV-files/blob/master/source_file.cpp
 static Eigen::MatrixXd readMatrixCsv(std::string fileToOpen)
@@ -111,8 +113,9 @@ static Eigen::MatrixXd readMatrixCsv(std::string fileToOpen)
 
 }
 
+
 class FaceModel {
-public:
+protected:
     FaceModel() {
 
         std::cout << "Data reading..." << std::endl;
@@ -144,17 +147,30 @@ public:
                 expBaseAr[i][j] = expBase(i, j);
             }
 
-            for( int j = 0; j < 64; j++) {
+            for( int j = 0; j < 80; j++) {
                 idBaseAr[i][j] = idBase(i, j);
             }
         }
 
+        expCoefAr = new double[64];
+        shapeCoefAr = new double[80];
 
+        for( int j = 0; j < 64; j++) {
+            expCoefAr[j] = 0.0;
+        }
+
+        for( int j = 0; j < 80; j++) {
+            shapeCoefAr[j] = 0.0;
+        }
+        
         //Parameters for inner steps
         expression = new double[107127];
         shape = new double[107127];
         face = new double[107127];
         face_t = new double[107127];
+
+        shapeCoef = VectorXd::Zero(80);
+        expCoef = VectorXd::Zero(64);
 
         rotation = MatrixXd::Identity(3, 3);
         translation = VectorXd::Zero(3);
@@ -178,15 +194,31 @@ public:
         delete[] shape;
         delete[] face;
         delete[] face_t;
+
+        delete[] shapeCoefAr;
+        delete[] expCoefAr;
     }
 
+public:
+    FaceModel(FaceModel &other) = delete;
+
+    void operator=(const FaceModel &) = delete;
+
+    static FaceModel *getInstance();
+
     void clear() {
+        shapeCoef = VectorXd::Zero(80);
+        expCoef = VectorXd::Zero(64);
+
         rotation = MatrixXd::Identity(3, 3);
         translation = VectorXd::Zero(3);
     }
 
-    
     double* get_mesh() {
+
+        dotProduct(expBaseAr, expCoefAr, 64, expression);
+        dotProduct(idBaseAr, shapeCoefAr, 80, shape);
+        sum_params(expression, shape, meanshapeAr, face);
         return face;
     }
 
@@ -205,43 +237,7 @@ public:
         return result;
     }
 
-    void update_face(double* shapeCoef, double* expCoef) {
-		double* expression =  new double[107127];
-		double* shape = new double[107127];
-
-		for (int i = 0; i < 107127; i++) {
-			double sum = 0.0;
-			for (int j = 0; j < 64; j++) {
-				sum += expBaseAr[i][j] * expCoef[j];
-			}
-			expression[i] = sum;
-		}
-
-		for (int i = 0; i < 107127; i++) {
-			double sum = 0.0;
-			for (int j = 0; j < 80; j++) {
-				sum += idBaseAr[i][j] * shapeCoef[j];
-			}
-			shape[i] = sum;
-		}
-
-		for (int i = 0; i < 107127; i++) {
-			face[i] = expression[i] + shape[i] + meanshapeAr[i];
-		}
-
-		vertices.clear();
-
-		for( int i = 0; i < 107127; i++) {
-			vertices.push_back(Eigen::Vector3d(face[3*i], face[3*i+1], face[3*i+2]));
-		}
-	}
-
-	std::vector<Eigen::Vector3d> get_vertices() {
-		return vertices;
-	}
-
-    void write_off(std::string filename, double* shapeCoef, double* expCoef) {
-        update_face(shapeCoef, expCoef);
+    void write_off(std::string filename) {
 
         std::cout << "Writing mesh...\n";
         std::ofstream file;
@@ -258,7 +254,9 @@ public:
         for ( auto t : m_triangles) {
             file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
         }
+
     }
+
 
 public:
     Eigen::MatrixXd idBase;
@@ -269,6 +267,9 @@ public:
 	std::vector<Eigen::Vector3d> vertices;
 	Eigen::VectorXd faces;
 
+    Eigen::VectorXd shapeCoef;
+    Eigen::VectorXd expCoef;
+
 	Eigen::MatrixXd rotation;
 	Eigen::VectorXd translation;
 
@@ -276,6 +277,8 @@ public:
 	double** idBaseAr;
 	double** expBaseAr;
 	double* meanshapeAr;
+    double* shapeCoefAr;
+    double* expCoefAr;
 
 	//Parameters for inner steps
 	double* expression;
@@ -283,4 +286,22 @@ public:
     double* face;
     double* face_t;
 
+private:
+    static FaceModel* m_pInstance;
+    static std::mutex m_mutex;
 };
+
+
+FaceModel* FaceModel::m_pInstance{nullptr};
+std::mutex FaceModel::m_mutex;
+
+
+FaceModel *FaceModel::getInstance()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_pInstance == nullptr)
+    {
+        m_pInstance = new FaceModel();
+    }
+    return m_pInstance;
+}
