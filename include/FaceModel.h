@@ -237,6 +237,8 @@ public:
 		for( int i = 0; i < 107127; i++) {
 			vertices.push_back(Eigen::Vector3d(face[3*i], face[3*i+1], face[3*i+2]));
 		}
+        delete [] expression;
+        delete [] shape;
 	}
 
 	std::vector<Eigen::Vector3d> get_vertices() {

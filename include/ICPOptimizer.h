@@ -33,68 +33,9 @@ static inline void dotFace_ceres(const T* idBaseRow, const T* expBaseRow, const 
 
 
 
-template <typename T>
-class ExpShapeCoeffIncrement {
-public:
-    explicit ExpShapeCoeffIncrement(Eigen::MatrixXd idBase, Eigen::MatrixXd expBase,  double meanShape, T* const arrayExpCoef, T* const arrayShapeCoef) :
-    m_idBase{ idBase },
-    m_expBase{ expBase },
-    m_meanShapeVal{ meanShapeVal },
-    m_arrayExpCoef{ arrayExpCoef },
-    m_arrayShapeCoef{ arrayShapeCoef }
-    { }
-
-    void setZero() {
-        for (int i = 0; i < 64; ++i)
-            m_arrayExpCoef[i] = T(0);
-
-        for (int i = 0; i < 80; ++i)
-            m_arrayShapeCoef[i] = T(0);
-    }
-
-    T* getExpCoeff() const {
-        return m_arrayExpCoef;
-    }
-
-    T* getShapeCoeff() const {
-        return m_arrayShapeCoef;
-    }
-
-    /**
- * Applies the pose increment onto the input point and produces transformed output point.
- * Important: The memory for both 3D points (input and output) needs to be reserved (i.e. on the stack)
- * beforehand).
- */
-    void apply(const int inputIndex, T* outputPoint) const {
-        const T* expCoef = m_arrayExpCoef;
-        const T* shapeCoef = m_arrayShapeCoef;
-
-        // T faces[3];
-        Eigen::MatrixXd tempId = Identity(3, 80);
-        Eigen::MatrixXd tempExp = Identity(3, 64);
-
-        tempId = m_idBase.block(inputIndex, 0, 3, 80);
-        tempExp = m_expBase.block(inputIndex, 0, 3, 64);
-
-        tempId * m_arrayShapeCoef + tempExp * m_arrayExpCoef;
-        
-        outputPoint[0] = face1;
-        outputPoint[1] = face2;
-        outputPoint[2] = face3;
-    }
-
-private:
-    Eigen:MatrixXd m_idBase;
-    Eigen::MatrixXd m_expBase;
-    Eigen::MatrixXd m_meanShape;
-    T* m_arrayExpCoef;
-    T* m_arrayShapeCoef;
-};
-
-
 class MyCustomConstraint {
 public:
-    MyCustomConstraint(FaceModel faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) :
+    MyCustomConstraint(FaceModel &faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) :
             m_pFaceModel{ faceModel },
             m_sourcePointIndex{ sourcePointIndex },
             m_targetPoint{ targetPoint },
@@ -137,14 +78,14 @@ public:
         return true;
     }
 
-    static ceres::CostFunction* create(FaceModel faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) {
+    static ceres::CostFunction* create(FaceModel &faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) {
         return new ceres::AutoDiffCostFunction<MyCustomConstraint, 3, 64, 80>(
                 new MyCustomConstraint(faceModel, sourcePointIndex, targetPoint, weight)
         );
     }
 
 protected:
-    const FaceModel m_pFaceModel;
+    FaceModel m_pFaceModel;
     const int m_sourcePointIndex;
     const Vector3f m_targetPoint;
     const float m_weight;
@@ -245,7 +186,7 @@ public:
             std::cout << "match count:" << matchCtr << std::endl;
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
-            customPrepareConstraints(target.getPoints(), matches, expShapeCoeffIncrement, problem);
+            customPrepareConstraints(target.getPoints(), matches, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -277,12 +218,11 @@ private:
         options.linear_solver_type = ceres::DENSE_QR;
         options.minimizer_progress_to_stdout = 1;
         options.max_num_iterations = 1;
-        options.num_threads = 8;
+        options.num_threads = 1;
     }
 
     void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,
                                   const std::vector<Match> matches,
-                                  const ExpShapeCoeffIncrement<double> &expShapeCoeffIncrement,
                                   ceres::Problem &problem) const {
         const unsigned nPoints = targetPoints.size();
         for (unsigned i = 0; i < nPoints; ++i) {
@@ -294,8 +234,8 @@ private:
                 problem.AddResidualBlock(
                         MyCustomConstraint::create(faceModel, sourcePointIndex, targetPoint, match.weight),
                         nullptr,
-                        faceModel.expCoef.data(),
-                        faceModel.idCoef.data()
+                        const_cast<double*>(faceModel.expCoef.data()),
+                        const_cast<double*>(faceModel.idCoef.data())
                 );
             }
         }
