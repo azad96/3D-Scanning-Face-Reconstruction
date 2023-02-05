@@ -151,10 +151,13 @@ public:
 
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
+        
+        Eigen::VectorXd idCoefParam = VectorXd::Zeros(80);
+        Eigen::VectorXd expCoefParam = VectorXd::Zeros(64);
 
-        // The initial estimate can be given as an argument.
-        double *estimatedShapeCoef = new double[80];
-        double *estimatedExprCoef = new double[64];
+        for( int i = 0; i < 64; i++) {
+
+        }
 
         for (int i = 0; i < m_nIterations; ++i) {
             // Compute the matches.
@@ -162,8 +165,8 @@ public:
             clock_t begin = clock();
 
             faceModel.write_off("../sample_face/transformed_model.off", 
-                                faceModel.idCoef.data(),
-                                faceModel.expCoef.data());
+                                idCoefParam.data(),
+                                expCoefParam.data());
 
             SimpleMesh faceMesh;
             if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
@@ -204,8 +207,8 @@ public:
             std::cout << "Optimization iteration done." << std::endl;
         }
         faceModel.write_off("../sample_face/result.off",
-                            faceModel.idCoef.data(),
-                            faceModel.expCoef.data());
+                            idCoefParam.data(),
+                            expCoefParam.data());
     }
 
 private:
@@ -234,9 +237,8 @@ private:
                 problem.AddResidualBlock(
                         MyCustomConstraint::create(faceModel, sourcePointIndex, targetPoint, match.weight),
                         nullptr,
-                        const_cast<double*>(faceModel.expCoef.data()),
-                        const_cast<double*>(faceModel.idCoef.data())
-                );
+                        idCoefParam.data(),
+                        expCoefParam.data());
             }
         }
     }
