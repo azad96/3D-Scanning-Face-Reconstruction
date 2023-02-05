@@ -33,6 +33,8 @@ endif(MACOSX)
 
 # Set C++ flags
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS -g)
+set(CMAKE_CXX_FLAGS_DEBUG -g)
 
 find_package(Ceres REQUIRED)
 find_package(glog REQUIRED)

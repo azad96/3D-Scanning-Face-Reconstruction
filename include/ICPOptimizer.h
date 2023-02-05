@@ -12,6 +12,37 @@
 #include "ProcrustesAligner.h"
 #include "FaceModel.h"
 
+template <typename T>
+static inline void dotFace_umur(T** expBaseAr, T** idBaseAr, T* meanshapeAr, const T* expCoef, const T* shapeCoef, T* face) {
+
+    T* expression =  new T[107127];
+    T* shape = new T[107127];
+
+    for (int i = 0; i < 107127; i++) {
+        T sum = T(0.0);
+        for (int j = 0; j < 64; j++) {
+            sum += expBaseAr[i][j] * expCoef[j];
+        }
+        expression[i] = T(sum);
+    }
+
+    for (int i = 0; i < 107127; i++) {
+        T sum = T(0.0);
+        for (int j = 0; j < 80; j++) {
+            sum += idBaseAr[i][j] * shapeCoef[j];
+        }
+        shape[i] = T(sum);
+    }
+
+    for (int i = 0; i < 107127; i++) {
+        face[i] = expression[i] + shape[i] + meanshapeAr[i];
+    }
+
+
+    delete [] expression;
+    delete [] shape;
+
+}
 
 template <typename T>
 static inline void dotFace_ceres(const T* idBaseRow, const T* expBaseRow, const T& meanShapeVal, const T* expCoef, const T* shapeCoef, T &face) {
@@ -29,7 +60,6 @@ static inline void dotFace_ceres(const T* idBaseRow, const T* expBaseRow, const 
 
     face = expression + shape + meanShapeVal;
 }
-
 
 
 template <typename T>
@@ -67,12 +97,16 @@ public:
     void apply(const int inputIndex, T* outputPoint) const {
         const T* expCoef = m_arrayExpCoef;
         const T* shapeCoef = m_arrayShapeCoef;
+        
+        T* face = new T[107127];
 
-        // T faces[3];
-        T face1,face2,face3;
-        dotFace_ceres(m_idBaseRow[3*inputIndex], m_expBaseRow[3*inputIndex], m_meanShapeVal[3*inputIndex], expCoef, shapeCoef, face1);
-        dotFace_ceres(m_idBaseRow[3*inputIndex+1], m_expBaseRow[3*inputIndex+1], m_meanShapeVal[3*inputIndex+1], expCoef, shapeCoef, face2);
-        dotFace_ceres(m_idBaseRow[3*inputIndex+2], m_expBaseRow[3*inputIndex+2], m_meanShapeVal[3*inputIndex+2], expCoef, shapeCoef, face3);
+        dotFace_umur(m_expBaseRow, m_idBaseRow, m_meanShapeVal, expCoef, shapeCoef, face);
+
+        outputPoint[0] = face[3*inputIndex + 0];
+        outputPoint[1] = face[3*inputIndex + 1];
+        outputPoint[2] = face[3*inputIndex + 2];
+
+        delete[] face;
 
         // dotFace_ceres(
         //     const_cast<T*>(faceModel->idBaseAr[3*inputIndex]), 
@@ -99,9 +133,7 @@ public:
         // outputPoint[0] = faces[0];
         // outputPoint[1] = faces[1];
         // outputPoint[2] = faces[2];
-        outputPoint[0] = face1;
-        outputPoint[1] = face2;
-        outputPoint[2] = face3;
+
     }
 
 private:
@@ -125,18 +157,13 @@ public:
     template <typename T>
     bool operator()(const T* const expCoeff, const T* const shapeCoeff, T* residuals) const {
         auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<T>(
-            // const_cast<T*>(m_pFaceModel->idBaseAr[m_sourcePointIndex]),
-            // const_cast<T*>(m_pFaceModel->expBaseAr[m_sourcePointIndex]),
-            // const_cast<T*>(&m_pFaceModel->meanshapeAr[m_sourcePointIndex]),
-            // const_cast<T**>(m_pFaceModel->idBaseAr),
-            // const_cast<T**>(m_pFaceModel->expBaseAr),
-            // const_cast<T*>(m_pFaceModel->meanshapeAr),
             (T**)(m_pFaceModel->idBaseAr),
             (T**)(m_pFaceModel->expBaseAr),
             (T*)(m_pFaceModel->meanshapeAr),
             const_cast<T*>(expCoeff),
             const_cast<T*>(shapeCoeff)
             );
+        
         T p_s_tilda[3];
         expShapeCoeffIncrement.apply(m_sourcePointIndex, p_s_tilda);
 
@@ -144,6 +171,7 @@ public:
         residuals[1] = T(LAMBDA) * T(m_weight) * (p_s_tilda[1] - T(m_targetPoint[1]));
         residuals[2] = T(LAMBDA) * T(m_weight) * (p_s_tilda[2] - T(m_targetPoint[2]));
 
+        
         return true;
     }
 
@@ -222,11 +250,8 @@ public:
         m_nearestNeighborSearch->buildIndex(target.getPoints());
 
         // The initial estimate can be given as an argument.
-        double *estimatedShapeCoef = new double[80];
-        double *estimatedExprCoef = new double[64];
-
-        double incrementArrayExp[64];
         double incrementArrayShape[80];
+        double incrementArrayExp[64];
 
         auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<double>(
             faceModel.idBaseAr,
@@ -237,7 +262,6 @@ public:
         );
         expShapeCoeffIncrement.setZero();
 
-        
         for (int i = 0; i < m_nIterations; ++i) {
             // Compute the matches.
             std::cout << "Matching points ..." << std::endl;
@@ -246,7 +270,6 @@ public:
             faceModel.write_off("../sample_face/transformed_model.off", 
                                 expShapeCoeffIncrement.getShapeCoeff(),
                                 expShapeCoeffIncrement.getExpCoeff());
-            exit(0);
             SimpleMesh faceMesh;
             if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
                 std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
@@ -279,13 +302,6 @@ public:
             ceres::Solve(options, &problem, &summary);
             std::cout << summary.BriefReport() << std::endl;
             //std::cout << summary.FullReport() << std::endl;
-
-            //get updated optim. params
-            estimatedShapeCoef = expShapeCoeffIncrement.getShapeCoeff();
-            estimatedExprCoef = expShapeCoeffIncrement.getExpCoeff();
-
-            //update face model with these params
-            // faceModel.update_face(estimatedShapeCoef, estimatedExprCoef);
 
             std::cout << "Optimization iteration done." << std::endl;
         }

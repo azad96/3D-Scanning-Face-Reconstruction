@@ -74,7 +74,7 @@ int alignMeshWithICP() {
     optimizer = new CeresICPOptimizer();
     //optimizer->setMatchingMaxDistance(0.0003f);
     optimizer->setMatchingMaxDistance(0.000003f);
-    optimizer->setNbOfIterations(10);
+    optimizer->setNbOfIterations(1);
 
 	PointCloud target{ targetMesh };
 
