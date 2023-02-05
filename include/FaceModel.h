@@ -155,7 +155,10 @@ public:
         shape = new double[107127];
         face = new double[107127];
         face_t = new double[107127];
-
+        
+        expCoef = VectorXd::Zero(64);
+        idCoef = VectorXd::Zero(80);
+        
         rotation = MatrixXd::Identity(3, 3);
         translation = VectorXd::Zero(3);
     }
@@ -273,7 +276,10 @@ public:
 	Eigen::VectorXd translation;
 
 	//Store in array for ceres usage
-	double** idBaseAr;
+	Eigen::VectorXd idCoef;
+    Eigen::VectorXd expCoef;
+
+    double** idBaseAr;
 	double** expBaseAr;
 	double* meanshapeAr;
 
