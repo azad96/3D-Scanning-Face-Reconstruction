@@ -224,8 +224,9 @@ public:
     }
 
 
-    Eigen::MatrixXd transform(Eigen::MatrixXd face) {
-        return face * rotation;
+    Eigen::MatrixXd transform(Eigen::MatrixXd pose) {
+        Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
+        return mesh * pose;
     }
 
     Eigen::MatrixXd getAsEigenMatrix(double* face) {
@@ -239,7 +240,6 @@ public:
     }
 
     void write_off(std::string filename) {
-
         std::cout << "Writing mesh...\n";
         std::ofstream file;
 
@@ -255,7 +255,23 @@ public:
         for ( auto t : m_triangles) {
             file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
         }
+    }
 
+    void write_off(std::string filename, Eigen::MatrixXd mesh) {
+        std::cout << "Writing mesh...\n";
+        std::ofstream file;
+
+        std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
+
+        file.open(filename.c_str());
+        file << "OFF\n";
+        file << "35709 70789 0\n";
+        for (int i = 0; i < mesh.rows(); i++) {
+            file << mesh(i, 0) << " " << mesh(i, 1) << " " << mesh(i, 2) << "\n";
+        }
+        for ( auto t : m_triangles) {
+            file << "3 " << t.idx0 << " " << t.idx1 << " " << t.idx2 << "\n";
+        }
     }
 
 
