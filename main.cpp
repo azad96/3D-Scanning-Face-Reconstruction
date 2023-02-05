@@ -86,15 +86,15 @@ int alignMeshWithICP() {
 }
 
 int main() {
-	// FaceModel model;
+	FaceModel model;
 
-//    VectorXd random = VectorXd::Random(64)*2;
-//    model.expCoefAr = random.data();
-//    model.shapeCoefAr = random.data();
-//
-//    model.write_off("random.off");
+   VectorXd random = VectorXd::Random(64)*2;
+   double *expCoefAr = random.data();
+   double *shapeCoefAr = random.data();
 
-    alignMeshWithICP();
+   model.write_off("random_yeni.off", shapeCoefAr, expCoefAr);
+
+    //alignMeshWithICP();
 
     return 0;
 }

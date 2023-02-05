@@ -35,7 +35,7 @@ static inline void dotFace_ceres(const T* idBaseRow, const T* expBaseRow, const 
 
 class MyCustomConstraint {
 public:
-    MyCustomConstraint(FaceModel &faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) :
+    MyCustomConstraint(const FaceModel &faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) :
             m_pFaceModel{ faceModel },
             m_sourcePointIndex{ sourcePointIndex },
             m_targetPoint{ targetPoint },
@@ -49,14 +49,14 @@ public:
         T p_s_tilda[3];
 
         //Shape loop
-        for( int j = 0; j < 80; j++) {
+        for( int j = 0; j < 64; j++) {
             face(0,0) = T(m_pFaceModel.idBase(3*m_sourcePointIndex,j)) * shapeCoeff[j]; 
             face(0,1) = T(m_pFaceModel.idBase(3*m_sourcePointIndex+1,j)) * shapeCoeff[j];
             face(0,2) = T(m_pFaceModel.idBase(3*m_sourcePointIndex+2,j)) * shapeCoeff[j];
         }
 
         //Expression loop
-        for( int j = 0; j < 80; j++) {
+        for( int j = 0; j < 64; j++) {
             face(1,0) = T(m_pFaceModel.expBase(3*m_sourcePointIndex,j)) * expCoeff[j]; 
             face(1,1) = T(m_pFaceModel.expBase(3*m_sourcePointIndex+1,j)) * expCoeff[j];
             face(1,2) = T(m_pFaceModel.expBase(3*m_sourcePointIndex+2,j)) * expCoeff[j];
@@ -78,14 +78,14 @@ public:
         return true;
     }
 
-    static ceres::CostFunction* create(FaceModel &faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) {
+    static ceres::CostFunction* create(const FaceModel &faceModel, const int sourcePointIndex, const Vector3f& targetPoint, const float weight) {
         return new ceres::AutoDiffCostFunction<MyCustomConstraint, 3, 64, 80>(
                 new MyCustomConstraint(faceModel, sourcePointIndex, targetPoint, weight)
         );
     }
 
 protected:
-    FaceModel m_pFaceModel;
+    const FaceModel m_pFaceModel;
     const int m_sourcePointIndex;
     const Vector3f m_targetPoint;
     const float m_weight;
@@ -152,8 +152,8 @@ public:
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
         
-        Eigen::VectorXd idCoefParam = VectorXd::Zeros(80);
-        Eigen::VectorXd expCoefParam = VectorXd::Zeros(64);
+        Eigen::VectorXd idCoefParam = VectorXd::Zero(80);
+        Eigen::VectorXd expCoefParam = VectorXd::Zero(64);
 
         for( int i = 0; i < 64; i++) {
 
@@ -189,7 +189,7 @@ public:
             std::cout << "match count:" << matchCtr << std::endl;
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
-            customPrepareConstraints(target.getPoints(), matches, problem);
+            customPrepareConstraints(target.getPoints(), matches, idCoefParam, expCoefParam, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -203,9 +203,14 @@ public:
 
             //update face model with these params
             // faceModel.update_face(estimatedShapeCoef, estimatedExprCoef);
+            faceModel.write_off("../sample_face/transformed_model.off", 
+                                idCoefParam.data(),
+                                expCoefParam.data());
 
             std::cout << "Optimization iteration done." << std::endl;
+
         }
+        std::cout << "2" << std::endl;
         faceModel.write_off("../sample_face/result.off",
                             idCoefParam.data(),
                             expCoefParam.data());
@@ -226,6 +231,8 @@ private:
 
     void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,
                                   const std::vector<Match> matches,
+                                  Eigen::VectorXd &idCoefParam,
+                                  Eigen::VectorXd &expCoefParam,
                                   ceres::Problem &problem) const {
         const unsigned nPoints = targetPoints.size();
         for (unsigned i = 0; i < nPoints; ++i) {
