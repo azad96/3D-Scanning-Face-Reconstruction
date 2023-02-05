@@ -135,13 +135,10 @@ protected:
         idBaseAr = new double*[107127];
 
         for( int i = 0; i < 107127; i++) {
+            meanshapeAr[i] = meanshape(i);
+
             expBaseAr[i] = new double[64];
             idBaseAr[i] = new double[80];
-        }
-
-        // initialize arrays
-        for( int i = 0; i < 107127; i++) {
-            meanshapeAr[i] = meanshape(i);
 
             for( int j = 0; j < 64; j++) {
                 expBaseAr[i][j] = expBase(i, j);
@@ -177,7 +174,6 @@ protected:
     }
 
     ~FaceModel() {
-
         for( int i = 0; i < 64; i++) {
             delete[] expBaseAr[i];
         }
@@ -205,6 +201,11 @@ public:
     void operator=(const FaceModel &) = delete;
 
     static FaceModel *getInstance();
+    
+    static double** getIdBaseAr();
+
+    static double** getExpBaseAr();
+
 
     void clear() {
         shapeCoef = VectorXd::Zero(80);
@@ -304,4 +305,14 @@ FaceModel *FaceModel::getInstance()
         m_pInstance = new FaceModel();
     }
     return m_pInstance;
+}
+
+double** FaceModel::getIdBaseAr()
+{
+    return FaceModel::getInstance()->idBaseAr;
+}
+
+double** FaceModel::getExpBaseAr()
+{
+    return FaceModel::getInstance()->expBaseAr;
 }
