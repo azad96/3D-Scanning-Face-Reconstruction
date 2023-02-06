@@ -1,8 +1,7 @@
-build
-libs
 .DS_Store
 .vscode/
+.idea
+build
+libs
 cmake-build-debug
 cmake-build-release
-.idea
-
