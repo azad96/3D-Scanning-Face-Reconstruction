@@ -216,7 +216,6 @@ public:
     }
 
     double* get_mesh() {
-
         dotProduct(expBaseAr, expCoefAr, 64, expression);
         dotProduct(idBaseAr, shapeCoefAr, 80, shape);
         sum_params(expression, shape, meanshapeAr, face);
@@ -224,9 +223,14 @@ public:
     }
 
 
-    Eigen::MatrixXd transform(Eigen::MatrixXd pose) {
+    Eigen::MatrixXd transform(Eigen::Matrix4d pose) {
         Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
-        return mesh * pose;
+        // return mesh * pose.block<3,4>(0,0);
+        auto transposed_pose = pose.transpose();
+        auto rotation = transposed_pose.block<3,3>(0,0);
+        auto translation = transposed_pose.block<1,3>(3,0);
+
+        return (mesh*rotation).rowwise() + translation;
     }
 
     Eigen::MatrixXd getAsEigenMatrix(double* face) {
@@ -244,8 +248,7 @@ public:
         std::ofstream file;
 
         Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
-        std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
-
+        
         file.open(filename.c_str());
         file << "OFF\n";
         file << "35709 70789 0\n";

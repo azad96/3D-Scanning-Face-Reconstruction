@@ -89,6 +89,72 @@ private:
     T* m_arrayShapeCoef;
 };
 
+/**
+ * Pose increment is only an interface to the underlying array (in constructor, no copy
+ * of the input array is made).
+ * Important: Input array needs to have a size of at least 6.
+ */
+template <typename T>
+class PoseIncrement {
+public:
+    explicit PoseIncrement(T* const array) : m_array{ array } { }
+
+    void setZero() {
+        for (int i = 0; i < 6; ++i)
+            m_array[i] = T(0);
+    }
+
+    T* getData() const {
+        return m_array;
+    }
+
+    /**
+     * Applies the pose increment onto the input point and produces transformed output point.
+     * Important: The memory for both 3D points (input and output) needs to be reserved (i.e. on the stack)
+     * beforehand).
+     */
+    void apply(T* inputPoint, T* outputPoint) const {
+        // pose[0,1,2] is angle-axis rotation.
+        // pose[3,4,5] is translation.
+        const T* rotation = m_array;
+        const T* translation = m_array + 3;
+
+        T temp[3];
+        ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
+
+        outputPoint[0] = temp[0] + translation[0];
+        outputPoint[1] = temp[1] + translation[1];
+        outputPoint[2] = temp[2] + translation[2];
+    }
+
+    /**
+     * Converts the pose increment with rotation in SO3 notation and translation as 3D vector into
+     * transformation 4x4 matrix.
+     */
+    static Matrix4d convertToMatrix(const PoseIncrement<double>& poseIncrement) {
+        // pose[0,1,2] is angle-axis rotation.
+        // pose[3,4,5] is translation.
+        double* pose = poseIncrement.getData();
+        double* rotation = pose;
+        double* translation = pose + 3;
+
+        // Convert the rotation from SO3 to matrix notation (with column-major storage).
+        double rotationMatrix[9];
+        ceres::AngleAxisToRotationMatrix(rotation, rotationMatrix);
+
+        // Create the 4x4 transformation matrix.
+        Matrix4d matrix;
+        matrix.setIdentity();
+        matrix(0, 0) = double(rotationMatrix[0]);	matrix(0, 1) = double(rotationMatrix[3]);	matrix(0, 2) = double(rotationMatrix[6]);	matrix(0, 3) = double(translation[0]);
+        matrix(1, 0) = double(rotationMatrix[1]);	matrix(1, 1) = double(rotationMatrix[4]);	matrix(1, 2) = double(rotationMatrix[7]);	matrix(1, 3) = double(translation[1]);
+        matrix(2, 0) = double(rotationMatrix[2]);	matrix(2, 1) = double(rotationMatrix[5]);	matrix(2, 2) = double(rotationMatrix[8]);	matrix(2, 3) = double(translation[2]);
+
+        return matrix;
+    }
+
+private:
+    T* m_array;
+};
 
 class MyCustomConstraint {
 public:
@@ -99,19 +165,24 @@ public:
     { }
 
     template <typename T>
-    bool operator()(const T* const expCoeff, const T* const shapeCoeff, T* residuals) const {
+    bool operator()(const T* const expCoeff, const T* const shapeCoeff, const T* const pose, T* residuals) const {
         auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<T>(const_cast<T*>(expCoeff), const_cast<T*>(shapeCoeff));
         T p_s_tilda[3];
         expShapeCoeffIncrement.apply(m_sourcePointIndex, p_s_tilda);
-        residuals[0] = T(LAMBDA) * T(m_weight) * (p_s_tilda[0] - T(m_targetPoint[0]));
-        residuals[1] = T(LAMBDA) * T(m_weight) * (p_s_tilda[1] - T(m_targetPoint[1]));
-        residuals[2] = T(LAMBDA) * T(m_weight) * (p_s_tilda[2] - T(m_targetPoint[2]));
+
+        auto poseIncrement = PoseIncrement<T>(const_cast<T*>(pose));
+        T transformedPoint[3];
+        poseIncrement.apply(p_s_tilda, transformedPoint);
+
+        residuals[0] = T(LAMBDA) * T(m_weight) * (transformedPoint[0] - T(m_targetPoint[0]));
+        residuals[1] = T(LAMBDA) * T(m_weight) * (transformedPoint[1] - T(m_targetPoint[1]));
+        residuals[2] = T(LAMBDA) * T(m_weight) * (transformedPoint[2] - T(m_targetPoint[2]));
 
         return true;
     }
 
     static ceres::CostFunction* create(const int sourcePointIndex, const Vector3f& targetPoint, const float weight) {
-        return new ceres::AutoDiffCostFunction<MyCustomConstraint, 3, 64, 80>(
+        return new ceres::AutoDiffCostFunction<MyCustomConstraint, 3, 64, 80, 6>(
                 new MyCustomConstraint(sourcePointIndex, targetPoint, weight)
         );
     }
@@ -133,20 +204,24 @@ public:
     { }
 
     template <typename T>
-    bool operator()(const T* const expCoeff, const T* const shapeCoeff, T* residuals) const {
+    bool operator()(const T* const expCoeff, const T* const shapeCoeff, const T* const pose, T* residuals) const {
         auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<T>(const_cast<T*>(expCoeff), const_cast<T*>(shapeCoeff));
         T p_s_tilda[3];
         expShapeCoeffIncrement.apply(m_sourcePointIndex, p_s_tilda);
 
-        residuals[0] = T(LAMBDA) * T(m_weight) * T(m_targetNormal[0]) * (p_s_tilda[0] - T(m_targetPoint[0]));
-        residuals[0] += T(LAMBDA) * T(m_weight) * T(m_targetNormal[1]) * (p_s_tilda[1] - T(m_targetPoint[1]));
-        residuals[0] += T(LAMBDA) * T(m_weight) * T(m_targetNormal[2]) * (p_s_tilda[2] - T(m_targetPoint[2]));
+        auto poseIncrement = PoseIncrement<T>(const_cast<T*>(pose));
+        T transformedPoint[3];
+        poseIncrement.apply(p_s_tilda, transformedPoint);
+
+        residuals[0] =  T(LAMBDA) * T(m_weight) * T(m_targetNormal[0]) * (transformedPoint[0] - T(m_targetPoint[0]));
+        residuals[0] += T(LAMBDA) * T(m_weight) * T(m_targetNormal[1]) * (transformedPoint[1] - T(m_targetPoint[1]));
+        residuals[0] += T(LAMBDA) * T(m_weight) * T(m_targetNormal[2]) * (transformedPoint[2] - T(m_targetPoint[2]));
 
         return true;
     }
 
     static ceres::CostFunction* create(const int sourcePointIndex, const Vector3f& targetPoint, const Vector3f& targetNormal, const float weight) {
-        return new ceres::AutoDiffCostFunction<PointToPlaneConstr, 1, 64, 80>(
+        return new ceres::AutoDiffCostFunction<PointToPlaneConstr, 1, 64, 80, 6>(
                 new PointToPlaneConstr(sourcePointIndex, targetPoint, targetNormal, weight)
         );
     }
@@ -178,7 +253,7 @@ public:
         m_nIterations = nIterations;
     }
 
-    virtual void estimateExpShapeCoeffs(const PointCloud& target) = 0;
+    virtual void estimateExpShapeCoeffs(const PointCloud& target, Matrix4d& initialPose) = 0;
 
 
 protected:
@@ -211,7 +286,7 @@ class CeresICPOptimizer : public ICPOptimizer {
 public:
     CeresICPOptimizer() {}
 
-    virtual void estimateExpShapeCoeffs(const PointCloud &target) override {
+    virtual void estimateExpShapeCoeffs(const PointCloud &target, Matrix4d& initialPose) override {
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
 
@@ -221,13 +296,21 @@ public:
         auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<double>(incrementArrayExp, incrementArrayShape);
         expShapeCoeffIncrement.setZero();
 
+        double incrementArray[6];
+        auto poseIncrement = PoseIncrement<double>(incrementArray);
+        poseIncrement.setZero();
+
+        // The initial estimate can be given as an argument.
+        Matrix4d estimatedPose = initialPose;
+
         FaceModel* faceModel = FaceModel::getInstance();
         for (int i = 0; i < m_nIterations; ++i) {
             // Compute the matches.
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
-            faceModel->write_off("../sample_face/transformed_model.off");
+            auto mesh = faceModel->transform(estimatedPose);
+            faceModel->write_off("../sample_face/transformed_model.off", mesh);
             SimpleMesh faceMesh;
             if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
                 std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
@@ -249,7 +332,7 @@ public:
             std::cout << "match count:" << matchCtr << std::endl;
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
-            customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, problem);
+            customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, poseIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -259,15 +342,21 @@ public:
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
             std::cout << summary.BriefReport() << std::endl;
-            //std::cout << summary.FullReport() << std::endl;
+            // std::cout << summary.FullReport() << std::endl;
 
             //update face model with these params
             faceModel->expCoefAr = expShapeCoeffIncrement.getExpCoeff();
             faceModel->shapeCoefAr = expShapeCoeffIncrement.getShapeCoeff();
+            
+            // Update the current pose estimate (we always update the pose from the left, using left-increment notation).
+            Matrix4d matrix = PoseIncrement<double>::convertToMatrix(poseIncrement);
+            estimatedPose = matrix * estimatedPose;
+            poseIncrement.setZero();
 
             std::cout << "Optimization iteration done." << std::endl;
         }
-        faceModel->write_off("../sample_face/result.off");
+        auto mesh = faceModel->transform(estimatedPose);
+        faceModel->write_off("../sample_face/result.off", mesh);
     }
 
 
@@ -286,6 +375,7 @@ private:
                                   const std::vector<Vector3f> &targetNormals,
                                   const std::vector<Match> matches,
                                   const ExpShapeCoeffIncrement<double> &expShapeCoeffIncrement,
+                                  const PoseIncrement<double> &poseIncrement, 
                                   ceres::Problem &problem) const {
         const unsigned nPoints = targetPoints.size();
         for (unsigned i = 0; i < nPoints; ++i) {
@@ -298,7 +388,8 @@ private:
                         MyCustomConstraint::create(sourcePointIndex, targetPoint, match.weight),
                         nullptr,
                         expShapeCoeffIncrement.getExpCoeff(),
-                        expShapeCoeffIncrement.getShapeCoeff()
+                        expShapeCoeffIncrement.getShapeCoeff(),
+                        poseIncrement.getData()
                 );
 
                 const auto& targetNormal = targetNormals[match.idx];
@@ -309,7 +400,8 @@ private:
                     PointToPlaneConstr::create(sourcePointIndex, targetPoint, targetNormal, match.weight),
                     nullptr, 
                     expShapeCoeffIncrement.getExpCoeff(),
-                    expShapeCoeffIncrement.getShapeCoeff()
+                    expShapeCoeffIncrement.getShapeCoeff(),
+                    poseIncrement.getData()
                 );
             }
         }
