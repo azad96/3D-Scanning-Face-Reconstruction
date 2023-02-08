@@ -3,15 +3,47 @@
 
 class ProcrustesAligner {
 public:
-	Matrix4f estimatePose(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints) {
-		ASSERT(sourcePoints.size() == targetPoints.size() && "The number of source and target points should be the same, since every source point is matched with corresponding target point.");
+	Matrix4f estimatePose(const std::vector<Vector3f>& oldSourcePoints, const std::vector<Vector3f>& oldTargetPoints) {
 
-		// We estimate the pose between source and target points using Procrustes algorithm.
+		//TODO : why it is Nan ????????
+        // first I removed nans
+        std::vector<Vector3f> sourcePoints ;
+        std::vector<Vector3f> targetPoints ;
+
+        ASSERT(oldSourcePoints.size() == oldTargetPoints.size() && "The number of source and target points should be the same, since every source point is matched with corresponding target point.");
+
+
+        for(int i=0 ; i<oldSourcePoints.size(); i++){
+            if (std::isnan(oldSourcePoints[i][0]) || std::isnan(oldTargetPoints[i][0])||
+                std::isnan(oldSourcePoints[i][1]) || std::isnan(oldTargetPoints[i][1])||
+                std::isnan(oldSourcePoints[i][2]) || std::isnan(oldTargetPoints[i][2]) ){
+				continue;
+			}
+            else{
+                sourcePoints.push_back(oldSourcePoints[i]);
+                targetPoints.push_back(oldTargetPoints[i]);
+            }
+        }
+
+
+
+
+        // We estimate the pose between source and target points using Procrustes algorithm.
 		// Our shapes have the same scale, therefore we don't estimate scale. We estimated rotation and translation
 		// from source points to target points.
 
+
+        
+        ASSERT(sourcePoints.size() == targetPoints.size() && "The number of source and target points should be the same, since every source point is matched with corresponding target point.");
+
+
+        
+
+
 		auto sourceMean = computeMean(sourcePoints);
 		auto targetMean = computeMean(targetPoints);
+
+        
 		
 		Matrix3f rotation = estimateRotation(sourcePoints, sourceMean, targetPoints, targetMean);
 		Vector3f translation = computeTranslation(sourceMean, targetMean);
@@ -27,18 +59,23 @@ public:
 
 		return estimatedPose;
 	}
-
-private:
 	Vector3f computeMean(const std::vector<Vector3f>& points) {
 		// Compute the mean of input points.
 		const unsigned nPoints = points.size();
+		int s = 0;
 		Vector3f mean = Vector3f::Zero();
 		for (int i = 0; i < nPoints; ++i) {
-			mean += points[i];
+			if(!isnan(points[i](0))){
+				mean += points[i];
+				s++;
+			}
 		}
-		mean /= nPoints;
+		mean /= s;
 		return mean;
 	}
+
+private:
+	
 
 	Matrix3f estimateRotation(const std::vector<Vector3f>& sourcePoints, const Vector3f& sourceMean, const std::vector<Vector3f>& targetPoints, const Vector3f& targetMean) {
 		// Estimate the rotation from source to target points, following the Procrustes algorithm. 

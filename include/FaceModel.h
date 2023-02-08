@@ -125,7 +125,7 @@ protected:
         meanshape = readMatrixCsv(data_path + "/meanshape.csv");
 
 
-        // key_points = readKeypoints(data_path + "/kp_inds.csv");
+        key_points = readKeypoints(data_path + "/kp_inds.csv");
         m_triangles = readTriangle(data_path + "/tri.csv");
 
         std::cout << "Data reading completed..." << std::endl;
@@ -171,6 +171,7 @@ protected:
 
         rotation = MatrixXd::Identity(3, 3);
         translation = VectorXd::Zero(3);
+        createKeyVector();
     }
 
     ~FaceModel() {
@@ -206,6 +207,9 @@ public:
 
     static double** getExpBaseAr();
 
+    std::vector<unsigned int> key_points;
+    std::vector<Vector3f> key_vectors;
+    
 
     void clear() {
         shapeCoef = VectorXd::Zero(80);
@@ -274,13 +278,21 @@ public:
         }
     }
 
+    void createKeyVector(){
+		Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh()).reshaped<RowMajor>(35709, 3);
+		for(int i = 0 ; i < this->key_points.size() ; i++){
+			Vector3f a(mesh(this->key_points[i], 0),mesh(this->key_points[i], 1),mesh(this->key_points[i], 2));
+			this->key_vectors.push_back(a);
+		}
+	}
+
 
 public:
     Eigen::MatrixXd idBase;
     Eigen::MatrixXd expBase;
     std::vector<Triangle> m_triangles;
     Eigen::MatrixXd meanshape;
-    std::vector<unsigned int> key_points;
+    //std::vector<unsigned int> key_points;
 	std::vector<Eigen::Vector3d> vertices;
 	Eigen::VectorXd faces;
 
