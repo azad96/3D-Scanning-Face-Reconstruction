@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Eigen.h"
+#include <mutex>
 
 template <typename T>
 static inline void dotProduct(double** input1, double* input2, const int dim, T* output) {
@@ -159,7 +160,7 @@ protected:
         for( int j = 0; j < 80; j++) {
             shapeCoefAr[j] = 0.0;
         }
-        
+
         //Parameters for inner steps
         expression = new double[107127];
         shape = new double[107127];
@@ -171,6 +172,7 @@ protected:
 
         rotation = MatrixXd::Identity(3, 3);
         translation = VectorXd::Zero(3);
+
         createKeyVector();
     }
 
@@ -202,14 +204,11 @@ public:
     void operator=(const FaceModel &) = delete;
 
     static FaceModel *getInstance();
-    
+
     static double** getIdBaseAr();
 
     static double** getExpBaseAr();
 
-    std::vector<unsigned int> key_points;
-    std::vector<Vector3f> key_vectors;
-    
 
     void clear() {
         shapeCoef = VectorXd::Zero(80);
@@ -220,7 +219,6 @@ public:
     }
 
     double* get_mesh() {
-
         dotProduct(expBaseAr, expCoefAr, 64, expression);
         dotProduct(idBaseAr, shapeCoefAr, 80, shape);
         sum_params(expression, shape, meanshapeAr, face);
@@ -228,9 +226,14 @@ public:
     }
 
 
-    Eigen::MatrixXd transform(Eigen::MatrixXd pose) {
+    Eigen::MatrixXd transform(Eigen::Matrix4d pose) {
         Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
-        return mesh * pose;
+        // return mesh * pose.block<3,4>(0,0);
+        auto transposed_pose = pose.transpose();
+        auto rotation = transposed_pose.block<3,3>(0,0);
+        auto translation = transposed_pose.block<1,3>(3,0);
+
+        return (mesh*rotation).rowwise() + translation;
     }
 
     Eigen::MatrixXd getAsEigenMatrix(double* face) {
@@ -248,7 +251,6 @@ public:
         std::ofstream file;
 
         Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh());
-        std::cout << mesh.rows() << " " << mesh.cols() << std::endl;
 
         file.open(filename.c_str());
         file << "OFF\n";
@@ -279,12 +281,13 @@ public:
     }
 
     void createKeyVector(){
-		Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh()).reshaped<RowMajor>(35709, 3);
-		for(int i = 0 ; i < this->key_points.size() ; i++){
-			Vector3f a(mesh(this->key_points[i], 0),mesh(this->key_points[i], 1),mesh(this->key_points[i], 2));
-			this->key_vectors.push_back(a);
-		}
-	}
+        Eigen::MatrixXd mesh = getAsEigenMatrix(get_mesh()).reshaped<RowMajor>(35709, 3);
+        for(int i = 0 ; i < this->key_points.size() ; i++){
+            Vector3f a(mesh(this->key_points[i], 0),mesh(this->key_points[i], 1),mesh(this->key_points[i], 2));
+            this->key_vectors.push_back(a);
+        }
+    }
+
 
 
 public:
@@ -292,25 +295,26 @@ public:
     Eigen::MatrixXd expBase;
     std::vector<Triangle> m_triangles;
     Eigen::MatrixXd meanshape;
-    //std::vector<unsigned int> key_points;
-	std::vector<Eigen::Vector3d> vertices;
-	Eigen::VectorXd faces;
+    std::vector<unsigned int> key_points;
+    std::vector<Vector3f> key_vectors;
+    std::vector<Eigen::Vector3d> vertices;
+    Eigen::VectorXd faces;
 
     Eigen::VectorXd shapeCoef;
     Eigen::VectorXd expCoef;
 
-	Eigen::MatrixXd rotation;
-	Eigen::VectorXd translation;
+    Eigen::MatrixXd rotation;
+    Eigen::VectorXd translation;
 
-	//Store in array for ceres usage
-	double** idBaseAr;
-	double** expBaseAr;
-	double* meanshapeAr;
+    //Store in array for ceres usage
+    double** idBaseAr;
+    double** expBaseAr;
+    double* meanshapeAr;
     double* shapeCoefAr;
     double* expCoefAr;
 
-	//Parameters for inner steps
-	double* expression;
+    //Parameters for inner steps
+    double* expression;
     double* shape;
     double* face;
     double* face_t;

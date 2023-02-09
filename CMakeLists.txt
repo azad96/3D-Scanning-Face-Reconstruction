@@ -10,8 +10,6 @@ set(Eigen3_DIR ${LIBRARY_DIR}/Eigen/share/eigen3/cmake CACHE PATH "Path to insta
 set(glog_DIR ${LIBRARY_DIR}/Glog/lib/cmake/glog CACHE PATH "Path to installed glog")
 set(Ceres_DIR ${LIBRARY_DIR}/Ceres/lib/cmake/Ceres CACHE PATH "Path to installed Ceres")
 set(Flann_INCLUDE_DIR ${LIBRARY_DIR}/Flann-1.8.4 CACHE PATH "Path to Flann source folder")
-set(GLFW_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/glfw/include CACHE PATH "Path to glfw include")
-set(GLFW_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/glfw/lib/libglfw.3.dylib CACHE PATH "Path to glfw include")
 
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -44,7 +42,6 @@ find_package(Ceres REQUIRED)
 find_package(glog REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(dlib REQUIRED)
-find_package(glew REQUIRED)
 
 get_target_property(GLOG_DLL_PATH_DEBUG glog::glog IMPORTED_LOCATION_DEBUG)
 get_target_property(GLOG_DLL_PATH_RELEASE glog::glog IMPORTED_LOCATION_RELEASE)
@@ -70,14 +67,12 @@ file(GLOB SOURCE_FILES
 
 link_directories(${FreeImage_LIBRARY_DIR})
 add_executable(${PROJECT_NAME} main.cpp ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(${PROJECT_NAME} freeimage ceres ${PCL_LIBRARIES} ${OpenCV_LIBS} dlib::dlib Eigen3::Eigen ${GLFW_LIBRARY} ${GLEW_LIBRARY} )
+target_link_libraries(${PROJECT_NAME} freeimage ceres ${PCL_LIBRARIES} ${OpenCV_LIBS} dlib::dlib Eigen3::Eigen )
 # target_link_libraries(${PROJECT_NAME} freeimage glog::glog ceres Eigen3::Eigen)
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${EIGEN3_INCLUDE_DIR} 
     ${FreeImage_INCLUDE_DIR} 
     ${Flann_INCLUDE_DIR}
-    ${GLEW_INCLUDE_DIRS} 
-    ${GLFW_INCLUDE_DIRS}
 )
 
 
