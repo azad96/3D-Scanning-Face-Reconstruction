@@ -1,3 +1,5 @@
+
+
 #include <iostream>
 #include <fstream>
 #include <math.h>   
@@ -31,7 +33,7 @@ int alignMeshWithICP() {
 
 	// Estimate the pose from source to target mesh with ICP optimization.
     CeresICPOptimizer * optimizer = nullptr;
-    /*optimizer = new CeresICPOptimizer();
+    optimizer = new CeresICPOptimizer();
     //optimizer->setMatchingMaxDistance(0.0003f);
     optimizer->setMatchingMaxDistance(0.000003f);
     optimizer->setNbOfIterations(10);
@@ -40,14 +42,15 @@ int alignMeshWithICP() {
 
     optimizer->estimateExpShapeCoeffs(target);
 
-	delete optimizer;*/
+	delete optimizer;
 
 	return 0;
 }
 
 int main() {
-    std::cout << "Hello WOrld!" << std::endl;
+    std::cout << "Hello World!" << std::endl;
     std::string source_filename = "procrusted_face.off";
+
     write_prcrusted_mesh(source_filename);
 
     alignMeshWithICP();

@@ -170,8 +170,8 @@ protected:
         shapeCoef = VectorXd::Zero(80);
         expCoef = VectorXd::Zero(64);
 
-        rotation = MatrixXd::Identity(3, 3);
-        translation = VectorXd::Zero(3);
+        rotation = Matrix3d::Identity(3, 3);
+        translation = Vector3d::Zero(3);
 
         createKeyVector();
     }
@@ -318,6 +318,7 @@ public:
     double* shape;
     double* face;
     double* face_t;
+    double scale_factor;
 
 private:
     static FaceModel* m_pInstance;

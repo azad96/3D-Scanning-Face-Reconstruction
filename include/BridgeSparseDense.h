@@ -2,6 +2,7 @@
 // Created by umur on 09.02.23.
 //
 
+
 #ifndef BUILD_BRIDGESPARSEDENSE_H
 #define BUILD_BRIDGESPARSEDENSE_H
 
@@ -37,6 +38,8 @@ static void write_prcrusted_mesh(std::string source_filename) {
     for(int ind= 0 ; ind<sourcePoints.size() ; ind ++) {
         sourcePoints[ind] = scale * sourcePoints[ind] ;
     }
+
+    model->scale_factor = scale;
 
     std::vector<Vector3f> sp_deneme ;
     sp_deneme.push_back(sourcePoints[0]);sp_deneme.push_back(sourcePoints[16]);sp_deneme.push_back(sourcePoints[27]);sp_deneme.push_back(sourcePoints[8]) ;
@@ -100,10 +103,20 @@ static void write_prcrusted_mesh(std::string source_filename) {
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "est_kp_"+ std::to_string(k));
 
         }
+        //std::cout << estimatedPose << std::endl;
 
-        Eigen::MatrixXd procrusted_mesh = model->transform(estimatedPose.cast<double>());
+
+        Matrix4d estimatedPoseD = estimatedPose.cast<double>();
+
+        //std::cout << estimatedPoseD << std::endl;
+
+
+        model->rotation = estimatedPoseD.block<3,3>(0,0);
+        model->translation = estimatedPoseD.block<1,3>(3,0);
+        Eigen::MatrixXd procrusted_mesh = model->transform(estimatedPoseD);
         model->write_off("../sample_face/" + source_filename, procrusted_mesh);
 
+        std::cout << FaceModel::getInstance()->rotation << std::endl;
 
         viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
         // Loop for visualization (so that the visualizers are continuously updated):

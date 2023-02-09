@@ -1,3 +1,6 @@
+#pragma once
+
+
 #include <opencv2/opencv.hpp>
 #include <pcl/common/common.h>
 #include <pcl/io/pcd_io.h>
