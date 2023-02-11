@@ -170,6 +170,7 @@ protected:
         shapeCoef = VectorXd::Zero(80);
         expCoef = VectorXd::Zero(64);
 
+        transformation = Matrix4f ::Identity();
         rotation = Matrix3d::Identity(3, 3);
         translation = Vector3d::Zero(3);
 
@@ -305,6 +306,8 @@ public:
 
     Eigen::MatrixXd rotation;
     Eigen::VectorXd translation;
+
+    Eigen::Matrix4f transformation;
 
     //Store in array for ceres usage
     double** idBaseAr;

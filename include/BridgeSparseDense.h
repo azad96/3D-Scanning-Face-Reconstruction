@@ -92,8 +92,6 @@ static void write_prcrusted_mesh(std::string source_filename) {
             estimated = estimatedPose * estimated ;
             pcl::PointXYZRGB transformed_face =  pcl::PointXYZRGB(estimated(0),estimated(1),estimated(2));
 
-            std::cout << transformed_face.z << std::endl;
-
             transformed_face.r = 0;
             transformed_face.g = 255;
             transformed_face.b = 0;
@@ -105,7 +103,7 @@ static void write_prcrusted_mesh(std::string source_filename) {
         }
         //std::cout << estimatedPose << std::endl;
 
-
+        model->transformation = estimatedPose;
         Matrix4d estimatedPoseD = estimatedPose.cast<double>();
 
         //std::cout << estimatedPoseD << std::endl;
@@ -121,10 +119,10 @@ static void write_prcrusted_mesh(std::string source_filename) {
         viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
         // Loop for visualization (so that the visualizers are continuously updated):
         std::cout << "Visualization... "<< std::endl;
-        while (not viewer.wasStopped())
-        {
-            viewer.spin();
-            cv::waitKey(1);
-        }
+//        while (not viewer.wasStopped())
+//        {
+//            viewer.spin();
+//            cv::waitKey(1);
+//        }
     }
 }

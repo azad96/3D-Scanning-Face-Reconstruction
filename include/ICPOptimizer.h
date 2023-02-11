@@ -11,7 +11,6 @@
 #include "PointCloud.h"
 #include "ProcrustesAligner.h"
 #include "FaceModel.h"
-#include "DataHandler.h"
 
 
 template <typename T>
@@ -21,14 +20,10 @@ static inline void dotFace_ceres(int pointIndex, const T* expCoef, const T* shap
     T* expression =  new T[3];
     T* shape = new T[3];
 
-    T* pointVertex = new T[3];
-
-    unsigned keyIndex = faceModel->key_points[pointIndex];
-
     for (int i = 0; i < 3; i++) {
         T sum = T(0.0);
         for (int j = 0; j < 64; j++) {
-            sum += faceModel->expBaseAr[keyIndex*3 + i][j] * expCoef[j];
+            sum += faceModel->expBaseAr[pointIndex*3 + i][j] * expCoef[j];
         }
         expression[i] = T(sum);
     }
@@ -36,36 +31,14 @@ static inline void dotFace_ceres(int pointIndex, const T* expCoef, const T* shap
     for (int i = 0; i < 3; i++) {
         T sum = T(0.0);
         for (int j = 0; j < 80; j++) {
-            sum += faceModel->idBaseAr[keyIndex*3 + i][j] * shapeCoef[j];
+            sum += faceModel->idBaseAr[pointIndex*3 + i][j] * shapeCoef[j];
         }
         shape[i] = T(sum);
     }
 
     for (int i = 0; i < 3; i++) {
-        //pointVertex[i] = expression[i] + shape[i] + faceModel->meanshapeAr[keyIndex*3 + i];
-        face[i] = expression[i] + shape[i] + faceModel->meanshapeAr[keyIndex*3 + i];
+        face[i] = expression[i] + shape[i] + faceModel->meanshapeAr[pointIndex*3 + i];
     }
-
-    //apply scale
-//    for (int i = 0; i < 3; i++) {
-//        face[i] *= T(faceModel->scale_factor);
-//    }
-
-//    //apply rotation
-//    for (int i = 0; i < 3; i++) {
-//        T sum = T(0.0);
-//        for (int j = 0; j < 3; j++) {
-//            sum += pointVertex[j] * faceModel->rotation(i,j);
-//        }
-//        face[i] = T(sum);
-//    }
-//
-//    //apply translation
-//    for (int i = 0; i < 3; i++) {
-//        face[i] += T(faceModel->translation(i));
-//    }
-
-
 
     delete [] expression;
     delete [] shape;
@@ -77,8 +50,8 @@ template <typename T>
 class ExpShapeCoeffIncrement {
 public:
     explicit ExpShapeCoeffIncrement(T* const arrayExpCoef, T* const arrayShapeCoef) :
-    m_arrayExpCoef{ arrayExpCoef },
-    m_arrayShapeCoef{ arrayShapeCoef }
+            m_arrayExpCoef{ arrayExpCoef },
+            m_arrayShapeCoef{ arrayShapeCoef }
     { }
 
     void setZero() {
@@ -130,7 +103,6 @@ public:
         auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<T>(const_cast<T*>(expCoeff), const_cast<T*>(shapeCoeff));
         T p_s_tilda[3];
         expShapeCoeffIncrement.apply(m_sourcePointIndex, p_s_tilda);
-
         residuals[0] = T(LAMBDA) * T(m_weight) * (p_s_tilda[0] - T(m_targetPoint[0]));
         residuals[1] = T(LAMBDA) * T(m_weight) * (p_s_tilda[1] - T(m_targetPoint[1]));
         residuals[2] = T(LAMBDA) * T(m_weight) * (p_s_tilda[2] - T(m_targetPoint[2]));
@@ -241,7 +213,7 @@ public:
 
     virtual void estimateExpShapeCoeffs(const PointCloud &target) override {
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
-        //m_nearestNeighborSearch->buildIndex(target.getPoints());
+        m_nearestNeighborSearch->buildIndex(target.getPoints());
 
         double incrementArrayExp[64];
         double incrementArrayShape[80];
@@ -251,40 +223,42 @@ public:
 
         FaceModel* faceModel = FaceModel::getInstance();
 
-        Data* data = read_dataset();
 
-        std::vector<Vector3f> landmarks_target = data->key_vectors;
 
 
         for (int i = 0; i < m_nIterations; ++i) {
             // Compute the matches.
-//            std::cout << "Matching points ..." << std::endl;
-//            clock_t begin = clock();
-//
+            std::cout << "Matching points ..." << std::endl;
+            clock_t begin = clock();
+
             faceModel->write_off("../sample_face/transformed_model.off");
-//            SimpleMesh faceMesh;
-//            if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
-//                std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
-//            }
-//
-//            PointCloud faceModelPoints{faceMesh};
-//            auto matches = m_nearestNeighborSearch->queryMatches(faceModelPoints.getPoints());
-//            pruneCorrespondences(faceModelPoints.getNormals(), target.getNormals(), matches);
-//
-//            clock_t end = clock();
-//            double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
-//            std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
-//
-//            int matchCtr = 0;
-//            for(Match match : matches) {
-//                if (match.idx >= 0)
-//                   matchCtr++;
-//            }
-//            std::cout << "match count:" << matchCtr << std::endl;
+            SimpleMesh faceMesh;
+            if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
+                std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
+            }
+
+
+            //
+            faceMesh.transform(FaceModel::getInstance()->transformation / FaceModel::getInstance()->scale_factor);
+            //
+            PointCloud faceModelPoints{faceMesh};
+
+            auto matches = m_nearestNeighborSearch->queryMatches(faceModelPoints.getPoints());
+            pruneCorrespondences(faceModelPoints.getNormals(), target.getNormals(), matches);
+
+            clock_t end = clock();
+            double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
+            std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
+
+            int matchCtr = 0;
+            for(Match match : matches) {
+                if (match.idx >= 0)
+                    matchCtr++;
+            }
+            std::cout << "match count:" << matchCtr << std::endl;
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
-            //customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, problem);
-            customPrepareConstraints(data->key_vectors, expShapeCoeffIncrement, problem);
+            customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -317,71 +291,6 @@ private:
         options.num_threads = 8;
     }
 
-
-    void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,
-                                  const ExpShapeCoeffIncrement<double> &expShapeCoeffIncrement,
-                                  ceres::Problem &problem) const {
-        int nPoints = FaceModel::getInstance()->key_points.size();
-
-        for (int i = 0; i < nPoints; ++i) {
-            int index = FaceModel::getInstance()->key_points[i];
-            double* key_point = FaceModel::getInstance()->get_mesh();
-            Vector3f targetPoint = targetPoints[i];
-
-
-            if(i == 3 ||  i == 4 || i == 5 || i == 8 || i ==36)
-                continue;
-
-            double * tmp = FaceModel::getInstance()->get_mesh();
-            std::cout << targetPoint << "\t\t"<< key_point[index*3] << "  " << key_point[index*3+1] << "  " << key_point[index*3+2] << "\t\t";
-
-
-            double *face = new double[3];
-
-            //apply scale
-            for (int i = 0; i < 3; i++) {
-                face[i] *= double(FaceModel::getInstance()->scale_factor);
-            }
-
-            //apply rotation
-            for (int i = 0; i < 3; i++) {
-                double sum = double(0.0);
-                for (int j = 0; j < 3; j++) {
-                    sum += key_point[index] * FaceModel::getInstance()->rotation(i,j);
-                }
-                face[i] = double(sum);
-            }
-
-            //apply translation
-            for (int i = 0; i < 3; i++) {
-                face[i] += double(FaceModel::getInstance()->translation(i));
-            }
-
-            std::cout << face[0] << "  " << face[1] << "  " << face[2] << std::endl;
-
-            //
-            //std::cout << targetPoint << std::endl;
-            //targetPoint = targetPoint - FaceModel::getInstance()->translation.cast<float>();
-            //std::cout << targetPoint << std::endl;
-            //targetPoint = FaceModel::getInstance()->rotation.transpose().cast<float>() * targetPoint;
-//            targetPoint = targetPoint / FaceModel::getInstance()->scale_factor;
-//            std::cout << targetPoint << std::endl;
-
-            //targetPoint << key_point[index*3], key_point[index*3+1], key_point[index*3+2];
-
-            const int sourcePointIndex = i;
-
-            problem.AddResidualBlock(
-                    MyCustomConstraint::create(sourcePointIndex, targetPoint, 1.0f),
-                    nullptr,
-                    expShapeCoeffIncrement.getExpCoeff(),
-                    expShapeCoeffIncrement.getShapeCoeff()
-            );
-
-        }
-
-    }
-
     void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,
                                   const std::vector<Vector3f> &targetNormals,
                                   const std::vector<Match> matches,
@@ -406,10 +315,10 @@ private:
                     continue;
 
                 problem.AddResidualBlock(
-                    PointToPlaneConstr::create(sourcePointIndex, targetPoint, targetNormal, match.weight),
-                    nullptr, 
-                    expShapeCoeffIncrement.getExpCoeff(),
-                    expShapeCoeffIncrement.getShapeCoeff()
+                        PointToPlaneConstr::create(sourcePointIndex, targetPoint, targetNormal, match.weight),
+                        nullptr,
+                        expShapeCoeffIncrement.getExpCoeff(),
+                        expShapeCoeffIncrement.getShapeCoeff()
                 );
             }
         }
