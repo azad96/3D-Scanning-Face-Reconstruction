@@ -1,7 +1,6 @@
 build
 libs
 .DS_Store
-.vscode/
 cmake-build-debug
 cmake-build-release
 .idea
