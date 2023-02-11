@@ -13,6 +13,7 @@
 #include <tuple>
 #include <pcl/filters/crop_box.h>
 #include "Eigen.h"
+#include "PointCloud.h"
 
 
 #define WRITE_TXT 0
@@ -25,13 +26,15 @@ class Data {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;  
     std::vector<Vector3f>  key_vectors;
     cv::Mat img ;
-    Data(std::vector<pcl::PointXYZRGB> keypoints,pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,std::vector<Eigen::Vector3f> vec,cv::Mat img ) {   
+    PointCloud cropped_cloud;
+    Data(std::vector<pcl::PointXYZRGB> keypoints,pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,std::vector<Eigen::Vector3f> vec,cv::Mat img,PointCloud cropped_cloud ) {   
       this->keypoints = keypoints ;
       this->cloud = cloud;
       this->key_vectors = vec ;
       this->img = img;
+      this->cropped_cloud = cropped_cloud;
+      //delete[] cropped_depth_map;
     }
-
 };
 
 
@@ -78,6 +81,7 @@ Data* read_dataset()
     // around all the faces in the image.
     std::vector<dlib::rectangle> dets = detector(img_kp);
     cout << "Number of faces detected: " << dets.size() << endl;
+    std::cout << dets[0].tl_corner()<<std::endl;
 
     // Now we will go ask the shape_predictor to tell us the pose of
     // each face we detected.
@@ -86,8 +90,9 @@ Data* read_dataset()
     {
         dlib::full_object_detection shape = sp(img_kp, dets[j]);
         //cout << "number of parts: "<< shape.num_parts() << endl;
-        //cout << "pixel position of first part:  " << shape.part(0) << endl;
-        //cout << "pixel position of second part: " << shape.part(1) << endl;
+        cout << "pixel position of first part:  " << shape.part(0) << endl;
+        cout << "pixel position of second part: " << shape.part(1) << endl;
+        std::cout << shape.get_rect().tl_corner() <<std::endl;
         
         std::string s = string(filename);
 
@@ -118,6 +123,8 @@ Data* read_dataset()
     // and scaled to a standard size as shown here:
     dlib::array<dlib::array2d<dlib::rgb_pixel> > face_chips;
     dlib::extract_image_chips(img_kp, dlib::get_face_chip_details(shapes), face_chips);
+    //cv::Mat img_clip = dlib::toMat(std::move(face_chips[0]));
+
     //win_faces.set_image(tile_images(face_chips));
 
     //cout << "Hit enter to process the next image..." << endl;
@@ -151,8 +158,31 @@ Data* read_dataset()
         Vector3f a(keypoint.x, keypoint.y, keypoint.z);
         keypoints_vectors.push_back(a);
     }
+    int min_x = dets[0].tl_corner().x() ;
+    int min_y = dets[0].tl_corner().y() ;
+    int max_x = dets[0].br_corner().x() ;
+    int max_y = dets[0].br_corner().y() ;
 
+    float* cropped_depth_map = new float[(max_x-min_x)*(max_y-min_y)];
+    int ind =0 ;
+    for(int x =min_x  ; x<=max_x ; x++){
+        for(int y = min_y ; y<= max_y ;y++){
+            cropped_depth_map[ind] = cloud->at(x,y).z;
+            ind++;
+        }
 
-    return new Data(keypoints,cloud,keypoints_vectors,img);
+    }
+    
+    /*for(int i =0 ; i<=10 ;i++){
+        std::cout<<cropped_depth_map[i]<<std::endl;
+    }*/
+    Eigen::Matrix3f depthIntrinsics;
+    Eigen::Matrix4f depthExtrinsics;
+    depthExtrinsics.setIdentity();
+    depthIntrinsics <<  1052.667867276341, 0, 962.4130834944134, 0, 1052.020917785721, 536.2206151001486, 0, 0,1;
+    PointCloud cropped_cloud = PointCloud(cropped_depth_map,depthIntrinsics,depthExtrinsics,(max_x-min_x),(max_y-min_y));
+   
+
+    return new Data(keypoints,cloud,keypoints_vectors,img,cropped_cloud);
 
 }
