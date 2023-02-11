@@ -174,6 +174,9 @@ protected:
         rotation = Matrix3d::Identity(3, 3);
         translation = Vector3d::Zero(3);
 
+        pose = Matrix4d::Identity();
+        scale = 0.0;
+
         createKeyVector();
     }
 
@@ -320,8 +323,8 @@ public:
     Eigen::VectorXd shapeCoef;
     Eigen::VectorXd expCoef;
 
-    Eigen::MatrixXd rotation;
-    Eigen::VectorXd translation;
+    Eigen::Matrix3d rotation;
+    Eigen::Vector3d translation;
 
     Eigen::Matrix4f transformation;
 
@@ -338,6 +341,9 @@ public:
     double* face;
     double* face_t;
     double scale_factor;
+
+    Matrix4d pose;
+    double scale;
 
 private:
     static FaceModel* m_pInstance;

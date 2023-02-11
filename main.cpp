@@ -13,24 +13,65 @@
 #include "DataHandler.h"
 
 #define VISUALIZE  1
+using namespace std;
 
+int alignMeshWithICP() {
+	// Load the source and target mesh.
+	const std::string filenameSource = std::string("../sample_face/neutral.off");
+	const std::string filenameTarget = std::string("../sample_face/random.off");
+
+	SimpleMesh sourceMesh;
+	if (!sourceMesh.loadMesh(filenameSource)) {
+		std::cout << "Mesh file wasn't read successfully at location: " << filenameSource << std::endl;
+		return -1;
+	}
+
+	SimpleMesh targetMesh;
+	if (!targetMesh.loadMesh(filenameTarget)) {
+		std::cout << "Mesh file wasn't read successfully at location: " << filenameTarget << std::endl;
+		return -1;
+	}
+
+	// Estimate the pose from source to target mesh with ICP optimization.
+    CeresICPOptimizer * optimizer = nullptr;
+    optimizer = new CeresICPOptimizer();
+    //optimizer->setMatchingMaxDistance(0.0003f);
+    optimizer->setMatchingMaxDistance(0.000003f);
+    optimizer->setNbOfIterations(10);
+	PointCloud target{ targetMesh };
+    optimizer->estimateExpShapeCoeffs(target);
+	delete optimizer;
+
+	return 0;
+}
+
+int alignMeshWithICP(PointCloud target) {
+	// Load the source and target mesh.
+	const std::string filenameSource = std::string("../sample_face/neutral.off");
+	
+
+	SimpleMesh sourceMesh;
+	if (!sourceMesh.loadMesh(filenameSource)) {
+		std::cout << "Mesh file wasn't read successfully at location: " << filenameSource << std::endl;
+		return -1;
+	}
+
+
+
+	// Estimate the pose from source to target mesh with ICP optimization.
+    CeresICPOptimizer * optimizer = nullptr;
+    optimizer = new CeresICPOptimizer();
+    //optimizer->setMatchingMaxDistance(0.0003f);
+    optimizer->setMatchingMaxDistance(0.1f);
+    optimizer->setNbOfIterations(10);
+    optimizer->estimateExpShapeCoeffs(target);
+	delete optimizer;
+
+	return 0;
+} 
 
 
 int main() {
-	// double r[6] = {0, 3.14/9, 0, 0, 0, 0};
-	// auto pose = PoseIncrement<double>(r);
-	// auto matrix = PoseIncrement<double>::convertToMatrix(pose);
-
-
-	
-	// FaceModel* faceModel = FaceModel::getInstance();
-
-	// VectorXd random = VectorXd::Random(64)*2;
-	// faceModel->expCoefAr = random.data();
-	// faceModel->shapeCoefAr = random.data();
-
-	// auto mesh = faceModel->transform(matrix);
-	// faceModel->write_off("../sample_face/rotated_random.off", mesh);
 
 	FaceModel* model = FaceModel::getInstance();
 
@@ -46,9 +87,6 @@ int main() {
 	
 	double scale = target_scale / source_scale ;
 
-    Matrix4f scale_mat = Matrix4f::Identity() ;
-    scale_mat(0,0) = scale ; scale_mat(1,1) = scale ; scale_mat(2,3) = scale ;
-
     for(int ind= 0 ; ind<sourcePoints.size() ; ind ++) {
         sourcePoints[ind] = scale * sourcePoints[ind] ;
     }
@@ -62,16 +100,15 @@ int main() {
     
 	Matrix4f estimatedPose = aligner.estimatePose(sp_deneme, tp_deneme);
 
+    
+
     Matrix4d estimatedPoseD = estimatedPose.cast<double>();
 
-    MatrixXd transformed_mesh;
-    transformed_mesh = model->transform(estimatedPoseD, scale);
-     model->write_obj("hey.obj",transformed_mesh);
+    model->pose = estimatedPoseD;
+    model->scale = scale;
+    model->rotation = estimatedPoseD.block<3,3>(0,0);
+    model->translation = estimatedPoseD.block<3,1>(0,3);
 
-    pcl::PolygonMesh pcl_mesh;
-    pcl::io::loadOBJFile("../build/hey.obj",pcl_mesh); 
-
-   
 
     if(VISUALIZE){
         // 3D Visualization:
@@ -137,12 +174,24 @@ int main() {
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "cropped_"+ std::to_string(k));
 
         }*/
+
+
+        MatrixXd transformed_mesh;
+        transformed_mesh = model->transform(model->pose, model->scale);
+        model->write_obj("../sample_face/transformed_model.obj",transformed_mesh);
+        model->write_off("../sample_face/transformed_model.off",transformed_mesh);
+
+        pcl::PolygonMesh pcl_mesh;
+        pcl::io::loadOBJFile("../sample_face/transformed_model.obj",pcl_mesh); 
+
+
         viewer.addPolygonMesh(pcl_mesh,"pcl_mesh",0);
 
 
         viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
         // Loop for visualization (so that the visualizers are continuously updated):
         std::cout << "Visualization... "<< std::endl;
+        alignMeshWithICP(data->cropped_cloud);
         while (not viewer.wasStopped())
         {
         viewer.spin();
@@ -150,7 +199,8 @@ int main() {
         }
     }
 
-    //alignMeshWithICP();
+    
+    
 
     return 0;
 }

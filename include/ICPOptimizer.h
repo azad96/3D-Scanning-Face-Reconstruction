@@ -12,6 +12,90 @@
 #include "ProcrustesAligner.h"
 #include "FaceModel.h"
 
+/**
+ * Pose increment is only an interface to the underlying array (in constructor, no copy
+ * of the input array is made).
+ * Important: Input array needs to have a size of at least 6.
+ */
+template <typename T>
+class PoseIncrement {
+public:
+    explicit PoseIncrement(T* const array) : m_array{ array } { }
+
+    void setZero() {
+        for (int i = 0; i < 6; ++i)
+            m_array[i] = T(0);
+    }
+
+    T* getData() const {
+        return m_array;
+    }
+
+    /**
+     * Applies the pose increment onto the input point and produces transformed output point.
+     * Important: The memory for both 3D points (input and output) needs to be reserved (i.e. on the stack)
+     * beforehand).
+     */
+    void apply(T* inputPoint, T* outputPoint) const {
+        // pose[0,1,2] is angle-axis rotation.
+        // pose[3,4,5] is translation.
+        const T* rotation = m_array;
+        const T* translation = m_array + 3;
+
+        T temp[3];
+        ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
+
+        outputPoint[0] = temp[0] * m_scale+ translation[0];
+        outputPoint[1] = temp[1] * m_scale+ translation[1];
+        outputPoint[2] = temp[2] * m_scale+ translation[2];
+    }
+
+    /**
+     * Converts the pose increment with rotation in SO3 notation and translation as 3D vector into
+     * transformation 4x4 matrix.
+     */
+    static Matrix4d convertToMatrix(const PoseIncrement<double>& poseIncrement) {
+        // pose[0,1,2] is angle-axis rotation.
+        // pose[3,4,5] is translation.
+        double* pose = poseIncrement.getData();
+        double* rotation = pose;
+        double* translation = pose + 3;
+
+        // Convert the rotation from SO3 to matrix notation (with column-major storage).
+        double rotationMatrix[9];
+        ceres::AngleAxisToRotationMatrix(rotation, rotationMatrix);
+
+        // Create the 4x4 transformation matrix.
+        Matrix4d matrix;
+        matrix.setIdentity();
+        matrix(0, 0) = double(rotationMatrix[0]);	matrix(0, 1) = double(rotationMatrix[3]);	matrix(0, 2) = double(rotationMatrix[6]);	matrix(0, 3) = double(translation[0]);
+        matrix(1, 0) = double(rotationMatrix[1]);	matrix(1, 1) = double(rotationMatrix[4]);	matrix(1, 2) = double(rotationMatrix[7]);	matrix(1, 3) = double(translation[1]);
+        matrix(2, 0) = double(rotationMatrix[2]);	matrix(2, 1) = double(rotationMatrix[5]);	matrix(2, 2) = double(rotationMatrix[8]);	matrix(2, 3) = double(translation[2]);
+
+        return matrix;
+    }
+
+    void init(Matrix4d pose, double scale) {
+
+        double rotationMatrix[9];
+        double* rotation;
+
+        rotationMatrix[0] = pose(0,0); rotationMatrix[1] = pose(0,1); rotationMatrix[2] = pose(0,2);
+        rotationMatrix[3] = pose(1,0); rotationMatrix[4] = pose(1,1); rotationMatrix[5] = pose(1,2);
+        rotationMatrix[6] = pose(2,0); rotationMatrix[7] = pose(2,1); rotationMatrix[8] = pose(2,2);
+        ceres::RotationMatrixToAngleAxis(rotationMatrix, rotation);
+        cout << "iç\t" << rotation[0] <<  rotation[1]<< rotation[2] << endl;
+        m_array[0] = T(rotation[0]); m_array[1] = T(rotation[1]); m_array[2] = T(rotation[2]);
+        cout << "iç2" << endl;
+        m_scale = T(scale);
+        cout << "iç3" << endl;
+
+    }
+
+private:
+    T* m_array;
+    T m_scale;
+};
 
 template <typename T>
 static inline void dotFace_ceres(int pointIndex, const T* expCoef, const T* shapeCoef, T* face) {
@@ -19,6 +103,8 @@ static inline void dotFace_ceres(int pointIndex, const T* expCoef, const T* shap
 
     T* expression =  new T[3];
     T* shape = new T[3];
+
+    T* pointVertex = new T[3];
 
     for (int i = 0; i < 3; i++) {
         T sum = T(0.0);
@@ -37,7 +123,27 @@ static inline void dotFace_ceres(int pointIndex, const T* expCoef, const T* shap
     }
 
     for (int i = 0; i < 3; i++) {
-        face[i] = expression[i] + shape[i] + faceModel->meanshapeAr[pointIndex*3 + i];
+        pointVertex[i] = expression[i] + shape[i] + faceModel->meanshapeAr[pointIndex*3 + i];
+        //face[i] = expression[i] + shape[i] + faceModel->meanshapeAr[pointIndex*3 + i];
+    }
+
+    //apply scale
+    for (int i = 0; i < 3; i++) {
+        face[i] *= T(faceModel->scale);
+    }
+
+    //apply rotation
+    for (int i = 0; i < 3; i++) {
+        T sum = T(0.0);
+        for (int j = 0; j < 3; j++) {
+            sum += pointVertex[j] * faceModel->rotation(i,j);
+        }
+        face[i] = T(sum);
+    }
+ 
+    //apply translation
+    for (int i = 0; i < 3; i++) {
+        face[i] += T(faceModel->translation(i));
     }
 
     delete [] expression;
@@ -184,13 +290,48 @@ public:
 protected:
     unsigned m_nIterations;
     std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch;
+    std::vector<Vector3f> transformPoints(const std::vector<Vector3f>& sourcePoints, const Matrix4d& pose, double scale) {
+        std::vector<Vector3f> transformedPoints;
+        transformedPoints.reserve(sourcePoints.size());
+
+        const auto rotation = FaceModel::getInstance()->rotation;
+        const auto translation = FaceModel::getInstance()->translation;
+
+        for (const auto& point : sourcePoints) {
+            Vector3d pointD = point.cast<double>();
+            pointD *= scale;
+            Vector3d tmp = rotation * pointD + translation;
+            Vector3f tmpf = tmp.cast<float>();
+            transformedPoints.push_back(tmpf);
+        }
+
+        return transformedPoints;
+    }
+
+    std::vector<Vector3f> transformNormals(const std::vector<Vector3f>& sourceNormals, const Matrix4d& pose, double scale) {
+        std::vector<Vector3f> transformedNormals;
+        transformedNormals.reserve(sourceNormals.size());
+
+        const auto rotation = FaceModel::getInstance()->rotation;
+
+        for (const auto& normal : sourceNormals) {
+            Vector3d normalD = normal.cast<double>();
+            normalD *= scale;
+            Vector3d tmp = rotation.inverse().transpose() * normalD;
+            Vector3f tmpf = tmp.cast<float>();
+            transformedNormals.push_back(tmpf);
+        }
+
+        return transformedNormals;
+    }
 
     void pruneCorrespondences(const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, std::vector<Match>& matches) {
         const unsigned nPoints = sourceNormals.size();
-
+        int sum = 0;
         for (unsigned i = 0; i < nPoints; i++) {
             Match& match = matches[i];
             if (match.idx >= 0) {
+                sum++;
                 const auto& sourceNormal = sourceNormals[i];
                 const auto& targetNormal = targetNormals[match.idx];
 
@@ -200,6 +341,7 @@ protected:
                 }
             }
         }
+        cout << "sum: " << sum << endl;
     }
 };
 
@@ -227,13 +369,15 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
-            faceModel->write_off("../sample_face/transformed_model.off");
+            
             SimpleMesh faceMesh;
             if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
                 std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
             }
 
             PointCloud faceModelPoints{faceMesh};
+
+            
             auto matches = m_nearestNeighborSearch->queryMatches(faceModelPoints.getPoints());
             pruneCorrespondences(faceModelPoints.getNormals(), target.getNormals(), matches);
 
@@ -264,6 +408,10 @@ public:
             //update face model with these params
             faceModel->expCoefAr = expShapeCoeffIncrement.getExpCoeff();
             faceModel->shapeCoefAr = expShapeCoeffIncrement.getShapeCoeff();
+
+            MatrixXd transformed_mesh;
+            transformed_mesh = faceModel->transform(faceModel->pose, faceModel->scale);
+            faceModel->write_off("../sample_face/transformed_model.off",transformed_mesh);
 
             std::cout << "Optimization iteration done." << std::endl;
         }
