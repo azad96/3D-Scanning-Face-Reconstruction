@@ -175,10 +175,14 @@ int main() {
 	ProcrustesAligner aligner;
 
 	std::vector<Vector3f> targetPoints = data->key_vectors;
-	double target_scale = abs(targetPoints[1](0)-targetPoints[16](0));
-
 	std::vector<Vector3f> sourcePoints = model->key_vectors;
-    double source_scale = abs(sourcePoints[1](0)-sourcePoints[16](0));
+
+	
+	Eigen::Vector3f target_diff << targetPoints[1](0) - targetPoints[16](0) << 	targetPoints[1](1)-targetPoints[16](1) << targetPoints[1](2)-targetPoints[16](2);
+	Eigen::Vector3f source_diff << sourcePoints[1](0) - sourcePoints[16](0) << 	sourcePoints[1](1)-sourcePoints[16](1) << sourcePoints[1](2)-sourcePoints[16](2);
+	
+	double target_scale = target_diff.norm();
+    double source_scale = source_diff.norm();
 	
 	double scale = target_scale / source_scale ;
 
