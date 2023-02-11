@@ -70,6 +70,31 @@ int alignMeshWithICP(PointCloud target) {
 	return 0;
 } 
 
+int alignMeshWithICP(std::vector<Eigen::Vector3f> target) {
+	// Load the source and target mesh.
+	const std::string filenameSource = std::string("../sample_face/neutral.off");
+	
+
+	SimpleMesh sourceMesh;
+	if (!sourceMesh.loadMesh(filenameSource)) {
+		std::cout << "Mesh file wasn't read successfully at location: " << filenameSource << std::endl;
+		return -1;
+	}
+
+
+
+	// Estimate the pose from source to target mesh with ICP optimization.
+    CeresICPOptimizer * optimizer = nullptr;
+    optimizer = new CeresICPOptimizer();
+    optimizer->setMatchingMaxDistance(0.003f);
+    //optimizer->setMatchingMaxDistance(1.0f);
+    optimizer->setNbOfIterations(10);
+    optimizer->estimateExpShapeCoeffs(target);
+	delete optimizer;
+
+	return 0;
+} 
+
 
 int main() {
 
@@ -109,7 +134,7 @@ int main() {
     model->rotation = estimatedPoseD.block<3,3>(0,0);
     model->translation = estimatedPoseD.block<3,1>(0,3);
 
-
+    FaceModel* faceModel = FaceModel::getInstance();
     if(VISUALIZE){
         // 3D Visualization:
         pcl::visualization::PCLVisualizer viewer("PCL Viewer");
@@ -119,7 +144,7 @@ int main() {
         viewer.addPointCloud<pcl::PointXYZRGB> (data->cloud, rgb, "cloud");
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_to_visualize(new pcl::PointCloud<pcl::PointXYZRGB>);
 
-    /*
+    
         for(int k = 0 ; k<data->keypoints.size() ; k++){
             // Draw selected 3D point in red:
             pcl::PointXYZRGB keypoint = data->keypoints[k];
@@ -131,10 +156,12 @@ int main() {
             viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, red, "kp_"+to_string(k));
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "kp_"+ std::to_string(k));
 
-        }*/
+        }
+
+        
 
         // THE RAW KEY POINTS OF THE MODEL
-        /*for(int k = 0 ; k<sourcePoints.size() ; k++){
+        for(int k = 0 ; k<sourcePoints.size() ; k++){
             //blue
             pcl::PointXYZRGB keypoint =  pcl::PointXYZRGB(sourcePoints[k](0),sourcePoints[k](1),sourcePoints[k](2));
             keypoint.r = 0;
@@ -145,7 +172,7 @@ int main() {
             viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, green, "model_kp_"+to_string(k));
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "model_kp_"+ std::to_string(k));
 
-        }*/
+        }
         /*
         for(int k = 0 ; k<sourcePoints.size() ; k++){
             // green:
@@ -162,9 +189,21 @@ int main() {
 
         }*/
 
-        /*
-        for(int k=0 ; data->cropped_cloud.getPoints().size() ; k++){
-            auto p = data->cropped_cloud.getPoints()[k];
+        
+        // for(int k=0 ; k < data->cropped_cloud.getPoints().size() ; k++){
+        //     auto p = data->cropped_cloud.getPoints()[k];
+        //     pcl::PointXYZRGB cp = pcl::PointXYZRGB(p(0),p(1),p(2));
+        //     cp.r=0,cp.g=0,cp.b=255;
+        //     point_to_visualize->points.push_back(cp);
+        //     //viever.addPointCloud<pcl::PointXYZRGB> (point_to_visualize,  )
+        //     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> blue(point_to_visualize);
+        //     viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, blue, "cropped_"+to_string(k));
+        //     viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "cropped_"+ std::to_string(k));
+
+        // }
+
+        for(int k=0 ; k < data->fullCloud.getPoints().size() ; k++){
+            auto p = data->fullCloud.getPoints()[k];
             pcl::PointXYZRGB cp = pcl::PointXYZRGB(p(0),p(1),p(2));
             cp.r=0,cp.g=0,cp.b=255;
             point_to_visualize->points.push_back(cp);
@@ -173,7 +212,11 @@ int main() {
             viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, blue, "cropped_"+to_string(k));
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "cropped_"+ std::to_string(k));
 
-        }*/
+        }
+
+
+
+
 
 
         MatrixXd transformed_mesh;
@@ -191,11 +234,55 @@ int main() {
         viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
         // Loop for visualization (so that the visualizers are continuously updated):
         std::cout << "Visualization... "<< std::endl;
-        alignMeshWithICP(data->cropped_cloud);
+        // std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
+        
+        // std::vector<Eigen::Vector3f> target = data->pclPoints;
+        std::vector<Eigen::Vector3f> source = data->key_vectors;
+        // m_nearestNeighborSearch->setMatchingMaxDistance(0.003f);
+        // m_nearestNeighborSearch->buildIndex(target);
+
+        // cout << "print 1 " << endl;
+        // cout << target[960*238 + 338] << endl << "dsa" << endl;
+        // source[0](0) += 0.00002;
+        // cout << source[0] << endl << "asd" << endl;
+
+        // auto matches = m_nearestNeighborSearch->queryMatches(source);
+        // int i = 0;
+        // for(Match match : matches) {
+        //     cout << match.idx << endl;
+        //     if (match.idx >= 0) {
+        //         cout << "girdim" << endl;
+        //         const auto &targetPoint = target[match.idx];
+        //         const int sourcePointIndex = i;
+
+        //         cout << "Point" << endl;
+        //         cout << targetPoint << endl;
+        //         cout << source[sourcePointIndex] << endl;
+        //     }
+        //     i++;
+        // }
+        //MatrixXd transformed_mesh;
+        SimpleMesh faceMesh;
+        if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
+            std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
+        }
+
+        PointCloud faceModelPoints{faceMesh};
+        vector<Vector3f> points = faceModelPoints.getPoints();
+        cout << "hey" << faceModel->key_points[31] << endl;
+        transformed_mesh = model->transform(model->pose, model->scale);
+        cout << " key point " << (transformed_mesh.block(faceModel->key_points[31], 0, 1, 3)) << endl;
+        cout << " source point " << source[31] << endl;
+        cout << " read mesh " << points[faceModel->key_points[31]] << endl;
+        cout << "distance " << (source[31] - points[faceModel->key_points[31]]).norm() << endl;
+        
+        alignMeshWithICP(data->pclPoints);
+        
+        
         while (not viewer.wasStopped())
         {
-        viewer.spin();
-        cv::waitKey(1);
+            viewer.spin();
+            cv::waitKey(1);
         }
     }
 

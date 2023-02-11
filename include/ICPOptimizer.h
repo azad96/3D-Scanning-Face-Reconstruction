@@ -285,6 +285,7 @@ public:
     }
 
     virtual void estimateExpShapeCoeffs(const PointCloud& target) = 0;
+    virtual void estimateExpShapeCoeffs(const std::vector<Eigen::Vector3f> &target) = 0;
 
 
 protected:
@@ -418,6 +419,75 @@ public:
         faceModel->write_off("../sample_face/result.off");
     }
 
+    virtual void estimateExpShapeCoeffs(const std::vector<Eigen::Vector3f> &target) override {
+        // Build the index of the FLANN tree (for fast nearest neighbor lookup).
+        
+        m_nearestNeighborSearch->buildIndex(target);
+
+        double incrementArrayExp[64];
+        double incrementArrayShape[80];
+
+        auto expShapeCoeffIncrement = ExpShapeCoeffIncrement<double>(incrementArrayExp, incrementArrayShape);
+        expShapeCoeffIncrement.setZero();
+
+        FaceModel* faceModel = FaceModel::getInstance();
+        for (int i = 0; i < m_nIterations; ++i) {
+            // Compute the matches.
+            std::cout << "Matching points ..." << std::endl;
+            clock_t begin = clock();
+
+            
+            SimpleMesh faceMesh;
+            if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
+                std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
+            }
+
+            PointCloud faceModelPoints{faceMesh};
+            cout << " inside mesh " << faceModelPoints.getPoints()[faceModel->key_points[31]] << endl;
+            
+            
+            //auto matches = m_nearestNeighborSearch->queryMatches(faceModelPoints.getPoints());
+            auto matches = m_nearestNeighborSearch->queryMatches(faceModelPoints.getPoints());
+
+
+            clock_t end = clock();
+            double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
+            std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
+
+
+            int matchCtr = 0;
+            for(Match match : matches) {
+                if (match.idx >= 0)
+                   matchCtr++;
+            }
+            std::cout << "match count:" << matchCtr << std::endl;
+            // Prepare point-to-point and point-to-plane constraints.
+            ceres::Problem problem;
+            customPrepareConstraints(target, matches, expShapeCoeffIncrement, problem);
+
+            // Configure options for the solver.
+            ceres::Solver::Options options;
+            configureSolver(options);
+
+            // Run the solver (for one iteration).
+            ceres::Solver::Summary summary;
+            ceres::Solve(options, &problem, &summary);
+            std::cout << summary.BriefReport() << std::endl;
+            //std::cout << summary.FullReport() << std::endl;
+
+            //update face model with these params
+            faceModel->expCoefAr = expShapeCoeffIncrement.getExpCoeff();
+            faceModel->shapeCoefAr = expShapeCoeffIncrement.getShapeCoeff();
+
+            MatrixXd transformed_mesh;
+            transformed_mesh = faceModel->transform(faceModel->pose, faceModel->scale);
+            faceModel->write_off("../sample_face/transformed_model.off",transformed_mesh);
+
+            std::cout << "Optimization iteration done." << std::endl;
+        }
+        faceModel->write_off("../sample_face/result.off");
+    }
+
 
 private:
     void configureSolver(ceres::Solver::Options &options) {
@@ -435,6 +505,7 @@ private:
                                   const std::vector<Match> matches,
                                   const ExpShapeCoeffIncrement<double> &expShapeCoeffIncrement,
                                   ceres::Problem &problem) const {
+                                    
         const unsigned nPoints = targetPoints.size();
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
@@ -459,6 +530,27 @@ private:
                     expShapeCoeffIncrement.getExpCoeff(),
                     expShapeCoeffIncrement.getShapeCoeff()
                 );
+            }
+        }
+    }
+
+    void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,
+                                  const std::vector<Match> matches,
+                                  const ExpShapeCoeffIncrement<double> &expShapeCoeffIncrement,
+                                  ceres::Problem &problem) const {
+        for (unsigned i = 0; i < 35709; ++i) {
+            const auto match = matches[i];
+            if (match.idx >= 0) {
+                const auto &targetPoint = targetPoints[match.idx];
+
+                const int sourcePointIndex = i;
+                problem.AddResidualBlock(
+                        MyCustomConstraint::create(sourcePointIndex, targetPoint, match.weight),
+                        nullptr,
+                        expShapeCoeffIncrement.getExpCoeff(),
+                        expShapeCoeffIncrement.getShapeCoeff()
+                );
+
             }
         }
     }

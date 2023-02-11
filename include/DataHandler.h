@@ -27,12 +27,17 @@ class Data {
     std::vector<Vector3f>  key_vectors;
     cv::Mat img ;
     PointCloud cropped_cloud;
-    Data(std::vector<pcl::PointXYZRGB> keypoints,pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,std::vector<Eigen::Vector3f> vec,cv::Mat img,PointCloud cropped_cloud ) {   
+    PointCloud fullCloud;
+    std::vector<Eigen::Vector3f> pclPoints;
+
+    Data(std::vector<pcl::PointXYZRGB> keypoints,pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,std::vector<Eigen::Vector3f> vec,cv::Mat img,PointCloud cropped_cloud, PointCloud fullCloud, std::vector<Eigen::Vector3f> pclPoints) {   
       this->keypoints = keypoints ;
       this->cloud = cloud;
       this->key_vectors = vec ;
       this->img = img;
       this->cropped_cloud = cropped_cloud;
+      this->fullCloud = fullCloud;
+      this->pclPoints = pclPoints;
       //delete[] cropped_depth_map;
     }
 };
@@ -145,15 +150,21 @@ Data* read_dataset()
 
     // Select a 3D point in the point cloud with row and column indices:
 
-    std::vector<pcl::PointXYZRGB> keypoints ; 
+    std::vector<pcl::PointXYZRGB> keypoints ;
+    vector<int> x_val;
+    vector<int> y_val;
+
     std::vector<Vector3f> keypoints_vectors ; 
     for ( int l = 0 ; l <shapes[0].num_parts() ; l++){
         //cout << "landmark " <<  l << " " << shapes[0].part(l).x() <<" "<<shapes[0].part(l).y()<< endl;
         pcl::PointXYZRGB keypoint = cloud->at(shapes[0].part(l).x(), shapes[0].part(l).y());
+
+        x_val.push_back(shapes[0].part(l).x());
+        y_val.push_back(shapes[0].part(l).y());
         //std::cout << "keypoint: " << keypoint.x << " " << keypoint.y << " " << keypoint.z << std::endl;
         keypoints.push_back(keypoint);
-        Eigen::Vector4f homogeneous_point(keypoint.x, keypoint.y, keypoint.z,1);
-        Vector3f output = P * homogeneous_point;
+        //Eigen::Vector4f homogeneous_point(keypoint.x, keypoint.y, keypoint.z,1);
+        //Vector3f output = P * homogeneous_point;
         //std::cout << output << std::endl;
         Vector3f a(keypoint.x, keypoint.y, keypoint.z);
         keypoints_vectors.push_back(a);
@@ -165,8 +176,8 @@ Data* read_dataset()
 
     float* cropped_depth_map = new float[(max_x-min_x)*(max_y-min_y)];
     int ind =0 ;
-    for(int x =min_x  ; x<=max_x ; x++){
-        for(int y = min_y ; y<= max_y ;y++){
+    for(int y = min_y ; y<= max_y ;y++){
+        for(int x =min_x  ; x<=max_x ; x++){
             cropped_depth_map[ind] = cloud->at(x,y).z;
             ind++;
         }
@@ -181,8 +192,62 @@ Data* read_dataset()
     depthExtrinsics.setIdentity();
     depthIntrinsics <<  1052.667867276341, 0, 962.4130834944134, 0, 1052.020917785721, 536.2206151001486, 0, 0,1;
     PointCloud cropped_cloud = PointCloud(cropped_depth_map,depthIntrinsics,depthExtrinsics,(max_x-min_x),(max_y-min_y));
-   
 
-    return new Data(keypoints,cloud,keypoints_vectors,img,cropped_cloud);
+
+
+    // float *points = new float[cloud->size()];
+    // int i = 0;
+    // for (const auto& point : *cloud) {
+    //     points[i] = point.z;
+    //     i++;
+    // }
+
+
+    //PointCloud fullCloud = PointCloud(points, depthIntrinsics, depthExtrinsics, 960, 540);
+    PointCloud fullCloud;
+
+    std::vector<Eigen::Vector3f> pclPoints;
+
+    int null_count = 0;
+    int total_count = 0;
+    // for (const auto& point : *cloud) {
+    for ( int y = 0 ; y <540 ; y++){
+        for ( int x = 0 ; x <960 ; x++){
+            pcl::PointXYZRGB keypoint = cloud->at(x, y);
+            
+            Vector3f a(keypoint.x, keypoint.y, keypoint.z);
+            pclPoints.push_back(a);
+        }
+    }
+
+    for(int i = 0; i < 64; i++) {
+        cout << "x " << x_val[i] << " y " << y_val[i] << endl;
+        pcl::PointXYZRGB keypoint = cloud->at(x_val[i], y_val[i]);
+
+        Vector3f a(keypoint.x, keypoint.y, keypoint.z);
+        cout << a << endl << "print" << endl;
+        cout << pclPoints[960*y_val[i] + x_val[i]] << endl << "dsa" << endl;
+        cout << "keypoints " << keypoints_vectors[i] << endl;
+        break;
+    }
+
+    /*for (int i=0; i < cloud->size(); i++) {
+        auto point = cloud->at(i);
+        total_count++;
+        
+        pclPoints.push_back(point.getVector3fMap());
+        // cout << "point: " << point.getVector3fMap() << endl;
+        if (isnan(point.x) || isnan(point.y) || isnan(point.z)){
+            null_count++;
+        }
+
+    }*/
+    //cout << "pcl sizet: " << cloud->size() << endl;
+    //cout << "total point count: " << total_count << endl;
+    //cout << "null point count: " << null_count << endl;
+
+
+
+    return new Data(keypoints,cloud,keypoints_vectors,img,cropped_cloud,fullCloud, pclPoints);
 
 }
