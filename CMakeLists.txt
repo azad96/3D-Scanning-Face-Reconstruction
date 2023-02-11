@@ -38,13 +38,13 @@ endif(MACOSX)
 # Set C++ flags
 set(CMAKE_CXX_STANDARD 14)
 
-find_package(PCL)
 find_package(PCL REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(glog REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(dlib REQUIRED)
 find_package(glew REQUIRED)
+find_package(VTK REQUIRED)
 
 get_target_property(GLOG_DLL_PATH_DEBUG glog::glog IMPORTED_LOCATION_DEBUG)
 get_target_property(GLOG_DLL_PATH_RELEASE glog::glog IMPORTED_LOCATION_RELEASE)
