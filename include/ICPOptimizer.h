@@ -226,7 +226,7 @@ protected:
     const int m_sourcePointIndex;
     const Vector3f m_targetPoint;
     const float m_weight;
-    const float LAMBDA = 0.1f;
+    const float LAMBDA = 0.01f;
 };
 
 class PointToPlaneConstr {
@@ -262,7 +262,7 @@ protected:
     const Vector3f m_targetPoint;
     const Vector3f m_targetNormal;
     const float m_weight;
-    const float LAMBDA = 0.1f;
+    const float LAMBDA = 0.01f;
 };
 
 /**
@@ -380,13 +380,19 @@ public:
 
             
             auto matches = m_nearestNeighborSearch->queryMatches(faceModelPoints.getPoints());
+            int matchCtr = 0;
+            for(Match match : matches) {
+                if (match.idx >= 0)
+                   matchCtr++;
+            }
+            std::cout << "match count before pruning:" << matchCtr << std::endl;
             pruneCorrespondences(faceModelPoints.getNormals(), target.getNormals(), matches);
 
             clock_t end = clock();
             double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
             std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
 
-            int matchCtr = 0;
+            matchCtr = 0;
             for(Match match : matches) {
                 if (match.idx >= 0)
                    matchCtr++;
@@ -394,12 +400,13 @@ public:
             std::cout << "match count:" << matchCtr << std::endl;
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
-            customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, problem);
+            //customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, problem);
+            customPrepareConstraints(target.getPoints(), matches, expShapeCoeffIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
             configureSolver(options);
-
+            
             // Run the solver (for one iteration).
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
@@ -471,7 +478,9 @@ public:
 
             // Run the solver (for one iteration).
             ceres::Solver::Summary summary;
+            exit(0);
             ceres::Solve(options, &problem, &summary);
+        
             std::cout << summary.BriefReport() << std::endl;
             //std::cout << summary.FullReport() << std::endl;
 
@@ -507,12 +516,12 @@ private:
                                   ceres::Problem &problem) const {
                                     
         const unsigned nPoints = targetPoints.size();
-        for (unsigned i = 0; i < nPoints; ++i) {
+        for (unsigned i = 0; i < 35709; ++i) {
             const auto match = matches[i];
             if (match.idx >= 0) {
                 const auto &targetPoint = targetPoints[match.idx];
 
-                const int sourcePointIndex = match.idx;
+                const int sourcePointIndex = i;
                 problem.AddResidualBlock(
                         MyCustomConstraint::create(sourcePointIndex, targetPoint, match.weight),
                         nullptr,

@@ -183,6 +183,7 @@ public:
         const unsigned nPoints = pointsTmp.size();
         m_points.reserve(std::floor(float(nPoints) / downsampleFactor));
         m_normals.reserve(std::floor(float(nPoints) / downsampleFactor));
+        rgb.reserve(std::floor(float(nPoints) / downsampleFactor));
 
         for (int i = 0; i < nPoints; i = i + downsampleFactor) {
             const auto& point = pointsTmp[i];

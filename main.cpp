@@ -62,8 +62,8 @@ int alignMeshWithICP(PointCloud target) {
     CeresICPOptimizer * optimizer = nullptr;
     optimizer = new CeresICPOptimizer();
     //optimizer->setMatchingMaxDistance(0.0003f);
-    optimizer->setMatchingMaxDistance(0.1f);
-    optimizer->setNbOfIterations(10);
+    optimizer->setMatchingMaxDistance(0.00001f);
+    optimizer->setNbOfIterations(5);
     optimizer->estimateExpShapeCoeffs(target);
 	delete optimizer;
 
@@ -105,12 +105,18 @@ int main() {
 	ProcrustesAligner aligner;
 
 	std::vector<Vector3f> targetPoints = data->key_vectors;
-	double target_scale = abs(targetPoints[1](0)-targetPoints[16](0));
-
 	std::vector<Vector3f> sourcePoints = model->key_vectors;
-    double source_scale = abs(sourcePoints[1](0)-sourcePoints[16](0));
+
 	
-	double scale = target_scale / source_scale ;
+	Eigen::Vector3f target_diff;
+    target_diff << targetPoints[1](0) - targetPoints[16](0),	targetPoints[1](1)-targetPoints[16](1), targetPoints[1](2)-targetPoints[16](2);
+	Eigen::Vector3f source_diff;
+    source_diff << sourcePoints[1](0) - sourcePoints[16](0), 	sourcePoints[1](1)-sourcePoints[16](1), sourcePoints[1](2)-sourcePoints[16](2);
+	
+	double target_scale = target_diff.norm();
+    double source_scale = source_diff.norm();
+	
+	double scale = target_scale / source_scale;
 
     for(int ind= 0 ; ind<sourcePoints.size() ; ind ++) {
         sourcePoints[ind] = scale * sourcePoints[ind] ;
@@ -190,20 +196,25 @@ int main() {
         }*/
         std::cout << "Basladi "<< std::endl;
         
-        vector<Vector3f> points_ = data->cropped_cloud.getPoints();
-         for(int k=0 ; k < points_.size() ; k=k+50){
-             auto p = points_[k];
-             Vector3f rgb_value = data->cropped_cloud.rgb[k];
-             pcl::PointXYZRGB cp = pcl::PointXYZRGB(p(0),p(1),p(2),rgb_value(0), rgb_value(1), rgb_value(2));
-             //cp.r=0,cp.g=0,cp.b=255;
-             
-             /*cp.r = rgb_value(0); cp.g = rgb_value(1); cp.b = rgb_value(2);*/
-             point_to_visualize->points.push_back(cp);
-             //viever.addPointCloud<pcl::PointXYZRGB> (point_to_visualize,  )
-             pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> blue(point_to_visualize);
-             viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, blue, "cropped_"+to_string(k));
-             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "cropped_"+ std::to_string(k));
-         }
+        //vector<Vector3f> points_ = data->cropped_cloud.getPoints();
+        //vector<Vector3f> normals_ = data->cropped_cloud.getNormals();
+        //  for(int k=0 ; k < points_.size() ; k=k+50){
+        //      auto p = points_[k];
+        //      Vector3f rgb_value = data->cropped_cloud.rgb[k];
+        //      Vector3f n_value = normals_[k];
+        //      pcl::PointXYZRGB cp = pcl::PointXYZRGB(p(0),p(1),p(2),rgb_value(0), rgb_value(1), rgb_value(2));
+
+        //      pcl::PointXYZRGB n = pcl::PointXYZRGB(n_value(0)+p(0),n_value(1)+p(1),n_value(2)+p(2),0, 255, 0);
+        //      //cp.r=0,cp.g=0,cp.b=255;
+        //      if(k/50%30==0)
+        //         viewer.addLine(cp, n, 0, 255, 0,"line_"+to_string(k));
+        //      /*cp.r = rgb_value(0); cp.g = rgb_value(1); cp.b = rgb_value(2);*/
+        //      point_to_visualize->points.push_back(cp);
+        //      //viever.addPointCloud<pcl::PointXYZRGB> (point_to_visualize,  )
+        //      pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> blue(point_to_visualize);
+        //      viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, blue, "cropped_"+to_string(k));
+        //      viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "cropped_"+ std::to_string(k));
+        //  }
 
         /*for(int k=0 ; k < data->fullCloud.getPoints().size() ; k++){
             auto p = data->fullCloud.getPoints()[k];
@@ -218,16 +229,6 @@ int main() {
         }*/
 
 
-        viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
-        // Loop for visualization (so that the visualizers are continuously updated):
-        std::cout << "Visualization... "<< std::endl;
-        while (not viewer.wasStopped())
-        {
-            viewer.spin();
-            cv::waitKey(1);
-        }
-        exit(0);
-
         MatrixXd transformed_mesh;
         transformed_mesh = model->transform(model->pose, model->scale);
         model->write_obj("../sample_face/transformed_model.obj",transformed_mesh);
@@ -240,9 +241,7 @@ int main() {
         viewer.addPolygonMesh(pcl_mesh,"pcl_mesh",0);
 
 
-        viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
-        // Loop for visualization (so that the visualizers are continuously updated):
-        std::cout << "Visualization... "<< std::endl;
+        
         // std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
         
         // std::vector<Eigen::Vector3f> target = data->pclPoints;
@@ -278,21 +277,26 @@ int main() {
 
 
         PointCloud faceModelPoints{faceMesh};
-        vector<Vector3f> points = faceModelPoints.getPoints();
-        cout << "hey" << faceModel->key_points[31] << endl;
-        transformed_mesh = model->transform(model->pose, model->scale);
-        cout << " key point " << (transformed_mesh.block(faceModel->key_points[31], 0, 1, 3)) << endl;
-        cout << " source point " << source[31] << endl;
-        cout << " read mesh " << points[faceModel->key_points[31]] << endl;
-        cout << "distance " << (source[31] - points[faceModel->key_points[31]]).norm() << endl;
+        // vector<Vector3f> points = faceModelPoints.getPoints();
+        // cout << "hey" << faceModel->key_points[31] << endl;
+        // transformed_mesh = model->transform(model->pose, model->scale);
+        // cout << " key point " << (transformed_mesh.block(faceModel->key_points[31], 0, 1, 3)) << endl;
+        // cout << " source point " << source[31] << endl;
+        // cout << " read mesh " << points[faceModel->key_points[31]] << endl;
+        // cout << "distance " << (source[31] - points[faceModel->key_points[31]]).norm() << endl;
         
         alignMeshWithICP(data->cropped_cloud);
         
+
+        viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
+        // Loop for visualization (so that the visualizers are continuously updated):
+        std::cout << "Visualization... "<< std::endl;
         
         while (not viewer.wasStopped())
         {
             viewer.spin();
             cv::waitKey(1);
+            break;
         }
     }
 
