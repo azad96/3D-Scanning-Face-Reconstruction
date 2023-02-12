@@ -174,10 +174,12 @@ Data* read_dataset()
     int max_x = dets[0].br_corner().x() ;
     int max_y = dets[0].br_corner().y() ;
 
-    float* cropped_depth_map = new float[(max_x-min_x)*(max_y-min_y)];
+    //float* cropped_depth_map = new float[(max_x-min_x)*(max_y-min_y)];
+    float* cropped_depth_map = new float[540*960];
+    cout<<"heyyyyy 00000"<<endl;
     int ind =0 ;
-    for(int y = min_y ; y<= max_y ;y++){
-        for(int x =min_x  ; x<=max_x ; x++){
+    for(int y = 0; y< 540 ;y++){
+        for(int x =0 ; x<960 ; x++){
             cropped_depth_map[ind] = cloud->at(x,y).z;
             ind++;
         }
@@ -190,9 +192,9 @@ Data* read_dataset()
     Eigen::Matrix3f depthIntrinsics;
     Eigen::Matrix4f depthExtrinsics;
     depthExtrinsics.setIdentity();
-    depthIntrinsics <<  1052.667867276341, 0, 962.4130834944134, 0, 1052.020917785721, 536.2206151001486, 0, 0,1;
-    PointCloud cropped_cloud = PointCloud(cropped_depth_map,depthIntrinsics,depthExtrinsics,(max_x-min_x),(max_y-min_y));
-
+    depthIntrinsics <<  1052.667867276341/2, 0, 962.4130834944134/2, 0, 1052.020917785721/2, 536.2206151001486/2, 0, 0,1;
+    //depthIntrinsics /=2;
+    
 
 
     // float *points = new float[cloud->size()];
@@ -207,6 +209,7 @@ Data* read_dataset()
     PointCloud fullCloud;
 
     std::vector<Eigen::Vector3f> pclPoints;
+    std::vector<Eigen::Vector3f> rgb_;
 
     int null_count = 0;
     int total_count = 0;
@@ -217,6 +220,9 @@ Data* read_dataset()
             
             Vector3f a(keypoint.x, keypoint.y, keypoint.z);
             pclPoints.push_back(a);
+            Vector3f b(keypoint.r, keypoint.g, keypoint.b);
+            rgb_.push_back(b);
+
         }
     }
 
@@ -244,7 +250,13 @@ Data* read_dataset()
     }*/
     //cout << "pcl sizet: " << cloud->size() << endl;
     //cout << "total point count: " << total_count << endl;
-    //cout << "null point count: " << null_count << endl;
+    cout << pclPoints[960*238+338] <<  endl;
+
+    PointCloud cropped_cloud = PointCloud(cropped_depth_map,pclPoints,960,540,rgb_);
+    cout<<"heyyyyy"<<endl;
+
+    cout << cropped_cloud.getPoints()[960*238+338]<<endl;
+
 
 
 

@@ -140,8 +140,8 @@ int main() {
         pcl::visualization::PCLVisualizer viewer("PCL Viewer");
         // Draw output point cloud:     
         viewer.addCoordinateSystem (0.1);
-        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(data->cloud);
-        viewer.addPointCloud<pcl::PointXYZRGB> (data->cloud, rgb, "cloud");
+        //pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(data->cloud);
+        //viewer.addPointCloud<pcl::PointXYZRGB> (data->cloud, rgb, "cloud");
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_to_visualize(new pcl::PointCloud<pcl::PointXYZRGB>);
 
     
@@ -161,7 +161,7 @@ int main() {
         
 
         // THE RAW KEY POINTS OF THE MODEL
-        for(int k = 0 ; k<sourcePoints.size() ; k++){
+        /*for(int k = 0 ; k<sourcePoints.size() ; k++){
             //blue
             pcl::PointXYZRGB keypoint =  pcl::PointXYZRGB(sourcePoints[k](0),sourcePoints[k](1),sourcePoints[k](2));
             keypoint.r = 0;
@@ -172,7 +172,7 @@ int main() {
             viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, green, "model_kp_"+to_string(k));
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "model_kp_"+ std::to_string(k));
 
-        }
+        }*/
         /*
         for(int k = 0 ; k<sourcePoints.size() ; k++){
             // green:
@@ -188,21 +188,24 @@ int main() {
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "est_kp_"+ std::to_string(k));
 
         }*/
-
+        std::cout << "Basladi "<< std::endl;
         
-        // for(int k=0 ; k < data->cropped_cloud.getPoints().size() ; k++){
-        //     auto p = data->cropped_cloud.getPoints()[k];
-        //     pcl::PointXYZRGB cp = pcl::PointXYZRGB(p(0),p(1),p(2));
-        //     cp.r=0,cp.g=0,cp.b=255;
-        //     point_to_visualize->points.push_back(cp);
-        //     //viever.addPointCloud<pcl::PointXYZRGB> (point_to_visualize,  )
-        //     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> blue(point_to_visualize);
-        //     viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, blue, "cropped_"+to_string(k));
-        //     viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "cropped_"+ std::to_string(k));
+        vector<Vector3f> points_ = data->cropped_cloud.getPoints();
+         for(int k=0 ; k < points_.size() ; k=k+50){
+             auto p = points_[k];
+             Vector3f rgb_value = data->cropped_cloud.rgb[k];
+             pcl::PointXYZRGB cp = pcl::PointXYZRGB(p(0),p(1),p(2),rgb_value(0), rgb_value(1), rgb_value(2));
+             //cp.r=0,cp.g=0,cp.b=255;
+             
+             /*cp.r = rgb_value(0); cp.g = rgb_value(1); cp.b = rgb_value(2);*/
+             point_to_visualize->points.push_back(cp);
+             //viever.addPointCloud<pcl::PointXYZRGB> (point_to_visualize,  )
+             pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> blue(point_to_visualize);
+             viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, blue, "cropped_"+to_string(k));
+             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "cropped_"+ std::to_string(k));
+         }
 
-        // }
-
-        for(int k=0 ; k < data->fullCloud.getPoints().size() ; k++){
+        /*for(int k=0 ; k < data->fullCloud.getPoints().size() ; k++){
             auto p = data->fullCloud.getPoints()[k];
             pcl::PointXYZRGB cp = pcl::PointXYZRGB(p(0),p(1),p(2));
             cp.r=0,cp.g=0,cp.b=255;
@@ -212,12 +215,18 @@ int main() {
             viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, blue, "cropped_"+to_string(k));
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "cropped_"+ std::to_string(k));
 
+        }*/
+
+
+        viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
+        // Loop for visualization (so that the visualizers are continuously updated):
+        std::cout << "Visualization... "<< std::endl;
+        while (not viewer.wasStopped())
+        {
+            viewer.spin();
+            cv::waitKey(1);
         }
-
-
-
-
-
+        exit(0);
 
         MatrixXd transformed_mesh;
         transformed_mesh = model->transform(model->pose, model->scale);
@@ -267,6 +276,7 @@ int main() {
             std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
         }
 
+
         PointCloud faceModelPoints{faceMesh};
         vector<Vector3f> points = faceModelPoints.getPoints();
         cout << "hey" << faceModel->key_points[31] << endl;
@@ -276,7 +286,7 @@ int main() {
         cout << " read mesh " << points[faceModel->key_points[31]] << endl;
         cout << "distance " << (source[31] - points[faceModel->key_points[31]]).norm() << endl;
         
-        alignMeshWithICP(data->pclPoints);
+        alignMeshWithICP(data->cropped_cloud);
         
         
         while (not viewer.wasStopped())
