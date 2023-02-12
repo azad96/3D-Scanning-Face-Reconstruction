@@ -101,10 +101,14 @@ template <typename T>
 static inline void dotFace_ceres(int pointIndex, const T* expCoef, const T* shapeCoef, T* face) {
     FaceModel* faceModel = FaceModel::getInstance();
 
-    T* expression =  new T[3];
-    T* shape = new T[3];
+    // T* expression =  new T[3];
+    // T* shape = new T[3];
 
-    T* pointVertex = new T[3];
+    // T* pointVertex = new T[3];
+
+    T expression[3];
+    T shape[3];
+    T pointVertex[3];
 
     for (int i = 0; i < 3; i++) {
         T sum = T(0.0);
@@ -129,7 +133,7 @@ static inline void dotFace_ceres(int pointIndex, const T* expCoef, const T* shap
 
     //apply scale
     for (int i = 0; i < 3; i++) {
-        face[i] *= T(faceModel->scale);
+        pointVertex[i] = pointVertex[i] * T(faceModel->scale);
     }
 
     //apply rotation
@@ -146,8 +150,9 @@ static inline void dotFace_ceres(int pointIndex, const T* expCoef, const T* shap
         face[i] += T(faceModel->translation(i));
     }
 
-    delete [] expression;
-    delete [] shape;
+    // delete [] expression;
+    // delete [] shape;
+    // delete [] pointVertex;
 
 }
 
@@ -226,7 +231,7 @@ protected:
     const int m_sourcePointIndex;
     const Vector3f m_targetPoint;
     const float m_weight;
-    const float LAMBDA = 0.01f;
+    const float LAMBDA = 0.1f;
 };
 
 class PointToPlaneConstr {
@@ -262,7 +267,7 @@ protected:
     const Vector3f m_targetPoint;
     const Vector3f m_targetNormal;
     const float m_weight;
-    const float LAMBDA = 0.01f;
+    const float LAMBDA = 0.1f;
 };
 
 /**
@@ -400,8 +405,8 @@ public:
             std::cout << "match count:" << matchCtr << std::endl;
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
-            //customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, problem);
-            customPrepareConstraints(target.getPoints(), matches, expShapeCoeffIncrement, problem);
+            customPrepareConstraints(target.getPoints(), target.getNormals(), matches, expShapeCoeffIncrement, problem);
+            //customPrepareConstraints(target.getPoints(), matches, expShapeCoeffIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -423,7 +428,13 @@ public:
 
             std::cout << "Optimization iteration done." << std::endl;
         }
-        faceModel->write_off("../sample_face/result.off");
+        MatrixXd transformed_mesh;
+        transformed_mesh = faceModel->transform(faceModel->pose, faceModel->scale);
+        faceModel->write_off("../sample_face/result.off",transformed_mesh);
+        
+        faceModel->write_obj("../sample_face/result.obj",transformed_mesh);
+
+
     }
 
     virtual void estimateExpShapeCoeffs(const std::vector<Eigen::Vector3f> &target) override {

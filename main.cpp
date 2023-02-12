@@ -146,23 +146,23 @@ int main() {
         pcl::visualization::PCLVisualizer viewer("PCL Viewer");
         // Draw output point cloud:     
         viewer.addCoordinateSystem (0.1);
-        //pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(data->cloud);
-        //viewer.addPointCloud<pcl::PointXYZRGB> (data->cloud, rgb, "cloud");
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(data->cloud);
+        viewer.addPointCloud<pcl::PointXYZRGB> (data->cloud, rgb, "cloud");
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_to_visualize(new pcl::PointCloud<pcl::PointXYZRGB>);
 
     
-        for(int k = 0 ; k<data->keypoints.size() ; k++){
-            // Draw selected 3D point in red:
-            pcl::PointXYZRGB keypoint = data->keypoints[k];
-            keypoint.r = 255;
-            keypoint.g = 0;
-            keypoint.b = 0;
-            point_to_visualize->points.push_back(keypoint);
-            pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> red(point_to_visualize);
-            viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, red, "kp_"+to_string(k));
-            viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "kp_"+ std::to_string(k));
+        // for(int k = 0 ; k<data->keypoints.size() ; k++){
+        //     // Draw selected 3D point in red:
+        //     pcl::PointXYZRGB keypoint = data->keypoints[k];
+        //     keypoint.r = 255;
+        //     keypoint.g = 0;
+        //     keypoint.b = 0;
+        //     point_to_visualize->points.push_back(keypoint);
+        //     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> red(point_to_visualize);
+        //     viewer.addPointCloud<pcl::PointXYZRGB> (point_to_visualize, red, "kp_"+to_string(k));
+        //     viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "kp_"+ std::to_string(k));
 
-        }
+        // }
 
         
 
@@ -234,11 +234,7 @@ int main() {
         model->write_obj("../sample_face/transformed_model.obj",transformed_mesh);
         model->write_off("../sample_face/transformed_model.off",transformed_mesh);
 
-        pcl::PolygonMesh pcl_mesh;
-        pcl::io::loadOBJFile("../sample_face/transformed_model.obj",pcl_mesh); 
-
-
-        viewer.addPolygonMesh(pcl_mesh,"pcl_mesh",0);
+        
 
 
         
@@ -287,6 +283,10 @@ int main() {
         
         alignMeshWithICP(data->cropped_cloud);
         
+        pcl::PolygonMesh pcl_mesh;
+        pcl::io::loadOBJFile("../sample_face/result.obj",pcl_mesh); 
+
+        viewer.addPolygonMesh(pcl_mesh,"pcl_mesh",0);
 
         viewer.setCameraPosition(-0.24917,-0.0187087,-1.29032, 0.0228136,-0.996651,0.0785278);
         // Loop for visualization (so that the visualizers are continuously updated):
@@ -296,7 +296,6 @@ int main() {
         {
             viewer.spin();
             cv::waitKey(1);
-            break;
         }
     }
 
