@@ -12,6 +12,47 @@
 #include "ProcrustesAligner.h"
 #include "FaceModel.h"
 
+#define SHAPE_REGULARIZATION_WEIGHT 0.000001
+#define EXPRESSION_REGULARIZATION_WEIGHT 0.0000005
+
+struct ShapeCostFunction
+{
+	ShapeCostFunction(double weight_)
+		: weight{ weight_ }
+	{}
+
+	template<typename T>
+	bool operator()(T const* shape_weights, T* residuals) const
+	{
+
+		for (int i = 0; i < 80; i++) {
+			residuals[i] = shape_weights[i] * T(sqrt(weight));
+		}
+		return true;
+	}
+
+private:
+	const double weight;
+};
+struct ExpressionCostFunction
+{
+	ExpressionCostFunction(double weight_)
+		: weight{weight_}
+	{}
+
+	template<typename T>
+	bool operator()(T const* exp_weights, T* residuals) const
+	{
+		for (int j = 0; j < 64; j++) {
+			residuals[j] = exp_weights[j] * T(sqrt(weight));
+		}
+		return true;
+	}
+
+private:
+	const double weight;
+};
+
 /**
  * Pose increment is only an interface to the underlying array (in constructor, no copy
  * of the input array is made).
@@ -552,6 +593,18 @@ private:
                 );
             }
         }
+
+        ceres::CostFunction* shape_cost = new ceres::AutoDiffCostFunction<ShapeCostFunction, 80, 80>(
+				new ShapeCostFunction(SHAPE_REGULARIZATION_WEIGHT)
+				);
+		problem.AddResidualBlock(shape_cost, nullptr, expShapeCoeffIncrement.getShapeCoeff());
+
+    
+        ceres::CostFunction* expression_cost = new ceres::AutoDiffCostFunction<ExpressionCostFunction, 64, 64>(
+				new ExpressionCostFunction(EXPRESSION_REGULARIZATION_WEIGHT)
+				);
+		problem.AddResidualBlock(expression_cost, nullptr, expShapeCoeffIncrement.getExpCoeff());
+
     }
 
     void customPrepareConstraints(const std::vector<Vector3f> &targetPoints,

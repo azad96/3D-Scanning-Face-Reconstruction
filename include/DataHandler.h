@@ -47,8 +47,14 @@ class Data {
 Data* read_dataset()
 {
    
-    std::string filename = "../dataset/image_1.png";
-    std::string pcd_filename="../dataset/cloud_1.pcd";
+    //std::string filename = "../dataset/image_1.png";
+    //std::string pcd_filename="../dataset/cloud_1.pcd";
+    
+    //std::string filename = "../RGBD_Face_dataset_testing/Test3/001_06_image.png";
+    //std::string pcd_filename="../RGBD_Face_dataset_testing/Test3/001_06_cloud.pcd";
+
+    std::string filename = "../RGBD_Face_dataset_training/000_05_image.png";
+    std::string pcd_filename="../RGBD_Face_dataset_training/000_05_cloud.pcd";
 
 	// Load point cloud:
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -157,7 +163,8 @@ Data* read_dataset()
     std::vector<Vector3f> keypoints_vectors ; 
     for ( int l = 0 ; l <shapes[0].num_parts() ; l++){
         //cout << "landmark " <<  l << " " << shapes[0].part(l).x() <<" "<<shapes[0].part(l).y()<< endl;
-        pcl::PointXYZRGB keypoint = cloud->at(shapes[0].part(l).x(), shapes[0].part(l).y());
+        //pcl::PointXYZRGB keypoint = cloud->at(shapes[0].part(l).x(), shapes[0].part(l).y());
+        pcl::PointXYZRGB keypoint = cloud->at((int)shapes[0].part(l).x()/2, (int)shapes[0].part(l).y()/2);
 
         x_val.push_back(shapes[0].part(l).x());
         y_val.push_back(shapes[0].part(l).y());

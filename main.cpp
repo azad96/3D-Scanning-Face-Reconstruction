@@ -36,8 +36,8 @@ int alignMeshWithICP() {
     CeresICPOptimizer * optimizer = nullptr;
     optimizer = new CeresICPOptimizer();
     //optimizer->setMatchingMaxDistance(0.0003f);
-    optimizer->setMatchingMaxDistance(0.000003f);
-    optimizer->setNbOfIterations(10);
+    optimizer->setMatchingMaxDistance(0.0000003f);
+    optimizer->setNbOfIterations(15);
 	PointCloud target{ targetMesh };
     optimizer->estimateExpShapeCoeffs(target);
 	delete optimizer;
@@ -62,8 +62,8 @@ int alignMeshWithICP(PointCloud target) {
     CeresICPOptimizer * optimizer = nullptr;
     optimizer = new CeresICPOptimizer();
     //optimizer->setMatchingMaxDistance(0.0003f);
-    optimizer->setMatchingMaxDistance(0.00001f);
-    optimizer->setNbOfIterations(5);
+    optimizer->setMatchingMaxDistance(0.000005f);
+    optimizer->setNbOfIterations(60);
     optimizer->estimateExpShapeCoeffs(target);
 	delete optimizer;
 
