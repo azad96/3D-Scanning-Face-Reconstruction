@@ -38,15 +38,12 @@ class Data {
       this->cropped_cloud = cropped_cloud;
       this->fullCloud = fullCloud;
       this->pclPoints = pclPoints;
-      //delete[] cropped_depth_map;
     }
 };
 
 
-
 Data* read_dataset()
 {
-   
     //std::string filename = "../dataset/image_1.png";
     //std::string pcd_filename="../dataset/cloud_1.pcd";
     
@@ -63,7 +60,6 @@ Data* read_dataset()
 		PCL_ERROR ("Couldn't read the pcd file \n");
 		return nullptr;
 	}
-
 
     // We need a face detector.  We will use this to get bounding boxes for
     // each face in an image.  
