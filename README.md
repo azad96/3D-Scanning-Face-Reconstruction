@@ -4,6 +4,7 @@ In this project, we aim to reconstruct 3D faces from RGB-D images and further tr
 ## Libraries
 The following libraries need to be installed before running the project:
 
+~~~
 PCL
 FreeImage
 Eigen
@@ -13,6 +14,7 @@ glog
 OpenCV
 dlib
 glew
+~~~
 
 ## Dataset and Models
 The IAS-Lab RGB-D Face Dataset needs to be downloaded.
@@ -23,11 +25,14 @@ It needs to be downloaded under the models directory.
 models/shape_predictor_68_face_landmarks.dat
 
 ## Configuring, building and running the project
+~~~
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make
 ./face_reconstruction
+~~~
+
 To perform the expression transfer experiment, the macro parameter "TRANSFER" in the include/ICPOptimizer.h file must be changed. However, in order to be able to transfer, an experiment without transfer must be done first.
 
 ## Description of Files
