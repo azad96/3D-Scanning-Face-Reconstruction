@@ -5,8 +5,6 @@ class ProcrustesAligner {
 public:
 	Matrix4f estimatePose(const std::vector<Vector3f>& oldSourcePoints, const std::vector<Vector3f>& oldTargetPoints) {
 
-		//TODO : why it is Nan ????????
-        // first I removed nans
         std::vector<Vector3f> sourcePoints ;
         std::vector<Vector3f> targetPoints ;
 

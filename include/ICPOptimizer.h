@@ -522,9 +522,7 @@ public:
 
             //update face model with these params
             if(i == m_nIterations-1){
-                std::cout<<"---------------------------------------"<<std::endl;
                 std::cout<<"-----------LAST ITERATION--------------"<<std::endl;
-                std::cout<<"---------------------------------------"<<std::endl;
                 if(TRANSFER){
                     expShapeCoeffIncrement.readExp();
                     std::cout<<"-----------TRANSFER--------------"<<std::endl;
@@ -612,7 +610,6 @@ public:
             ceres::Solve(options, &problem, &summary);
         
             std::cout << summary.BriefReport() << std::endl;
-            //std::cout << summary.FullReport() << std::endl;
 
             //update face model with these params
             faceModel->expCoefAr = expShapeCoeffIncrement.getExpCoeff();

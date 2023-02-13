@@ -115,40 +115,7 @@ public:
     }
 
     PointCloud(float* depthMap, std::vector<Vector3f> pointsTmp,const unsigned width, const unsigned height,std::vector<Eigen::Vector3f> rgb_, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
-        // Get depth intrinsics.
-        /*float fovX = depthIntrinsics(0, 0);
-        float fovY = depthIntrinsics(1, 1);
-        float cX = depthIntrinsics(0, 2);
-        float cY = depthIntrinsics(1, 2);*/
         const float maxDistanceHalved = maxDistance / 2.f;
-
-        // Compute inverse depth extrinsics.
-        /*Matrix4f depthExtrinsicsInv = depthExtrinsics.inverse();
-        Matrix3f rotationInv = depthExtrinsicsInv.block(0, 0, 3, 3);
-        Vector3f translationInv = depthExtrinsicsInv.block(0, 3, 3, 1);
-
-        // Back-project the pixel depths into the camera space.
-        std::vector<Vector3f> pointsTmp(width * height);*/
-
-        // For every pixel row.
-/*#pragma omp parallel for
-        for (int v = 0; v < height; ++v) {
-            // For every pixel in a row.
-            for (int u = 0; u < width; ++u) {
-                unsigned int idx = v * width + u; // linearized index
-                float depth = depthMap[idx];
-                if (depth == MINF) {
-                    pointsTmp[idx] = Vector3f(MINF, MINF, MINF);
-                }
-                else {
-                    // Back-projection to camera space.
-                    pointsTmp[idx] = rotationInv * Vector3f((u - cX) / fovX * depth, (v - cY) / fovY * depth, depth) + translationInv;
-                }
-            }
-        }*/
-        
-
-        // We need to compute derivatives and then the normalized normal vector (for valid pixels).
         std::vector<Vector3f> normalsTmp(width * height);
 
 #pragma omp parallel for
@@ -247,14 +214,6 @@ public:
 
             delete ps;
         }
-
-
-        //std::ofstream file("pointcloud.off");
-        //file << "OFF" << std::endl;
-        //file << m_points.size() << " 0 0" << std::endl;
-        //for(unsigned int i=0; i<m_points.size(); ++i)
-        //	file << m_points[i].x() << " " << m_points[i].y() << " " << m_points[i].z() << std::endl;
-        //file.close();
 
         return true;
     }

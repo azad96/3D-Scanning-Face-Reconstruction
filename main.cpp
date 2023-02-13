@@ -15,35 +15,7 @@
 #define VISUALIZE  1
 using namespace std;
 
-int alignMeshWithICP() {
-	// Load the source and target mesh.
-	const std::string filenameSource = std::string("../sample_face/neutral.off");
-	const std::string filenameTarget = std::string("../sample_face/random.off");
 
-	SimpleMesh sourceMesh;
-	if (!sourceMesh.loadMesh(filenameSource)) {
-		std::cout << "Mesh file wasn't read successfully at location: " << filenameSource << std::endl;
-		return -1;
-	}
-
-	SimpleMesh targetMesh;
-	if (!targetMesh.loadMesh(filenameTarget)) {
-		std::cout << "Mesh file wasn't read successfully at location: " << filenameTarget << std::endl;
-		return -1;
-	}
-
-	// Estimate the pose from source to target mesh with ICP optimization.
-    CeresICPOptimizer * optimizer = nullptr;
-    optimizer = new CeresICPOptimizer();
-    //optimizer->setMatchingMaxDistance(0.0003f);
-    optimizer->setMatchingMaxDistance(0.0000003f);
-    optimizer->setNbOfIterations(15);
-	PointCloud target{ targetMesh };
-    optimizer->estimateExpShapeCoeffs(target);
-	delete optimizer;
-
-	return 0;
-}
 
 int alignMeshWithICP(PointCloud target) {
 	// Load the source and target mesh.
@@ -64,31 +36,6 @@ int alignMeshWithICP(PointCloud target) {
     //optimizer->setMatchingMaxDistance(0.0003f);
     optimizer->setMatchingMaxDistance(0.000005f);
     optimizer->setNbOfIterations(60);
-    optimizer->estimateExpShapeCoeffs(target);
-	delete optimizer;
-
-	return 0;
-} 
-
-int alignMeshWithICP(std::vector<Eigen::Vector3f> target) {
-	// Load the source and target mesh.
-	const std::string filenameSource = std::string("../sample_face/neutral.off");
-	
-
-	SimpleMesh sourceMesh;
-	if (!sourceMesh.loadMesh(filenameSource)) {
-		std::cout << "Mesh file wasn't read successfully at location: " << filenameSource << std::endl;
-		return -1;
-	}
-
-
-
-	// Estimate the pose from source to target mesh with ICP optimization.
-    CeresICPOptimizer * optimizer = nullptr;
-    optimizer = new CeresICPOptimizer();
-    optimizer->setMatchingMaxDistance(0.003f);
-    //optimizer->setMatchingMaxDistance(1.0f);
-    optimizer->setNbOfIterations(10);
     optimizer->estimateExpShapeCoeffs(target);
 	delete optimizer;
 
@@ -164,8 +111,6 @@ int main() {
 
         // }
 
-        
-
         // THE RAW KEY POINTS OF THE MODEL
         /*for(int k = 0 ; k<sourcePoints.size() ; k++){
             //blue
@@ -194,7 +139,6 @@ int main() {
             viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "est_kp_"+ std::to_string(k));
 
         }*/
-        std::cout << "Basladi "<< std::endl;
         
         //vector<Vector3f> points_ = data->cropped_cloud.getPoints();
         //vector<Vector3f> normals_ = data->cropped_cloud.getNormals();
@@ -235,37 +179,8 @@ int main() {
         model->write_off("../sample_face/transformed_model.off",transformed_mesh);
 
         
-
-
-        
-        // std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
-        
-        // std::vector<Eigen::Vector3f> target = data->pclPoints;
         std::vector<Eigen::Vector3f> source = data->key_vectors;
-        // m_nearestNeighborSearch->setMatchingMaxDistance(0.003f);
-        // m_nearestNeighborSearch->buildIndex(target);
-
-        // cout << "print 1 " << endl;
-        // cout << target[960*238 + 338] << endl << "dsa" << endl;
-        // source[0](0) += 0.00002;
-        // cout << source[0] << endl << "asd" << endl;
-
-        // auto matches = m_nearestNeighborSearch->queryMatches(source);
-        // int i = 0;
-        // for(Match match : matches) {
-        //     cout << match.idx << endl;
-        //     if (match.idx >= 0) {
-        //         cout << "girdim" << endl;
-        //         const auto &targetPoint = target[match.idx];
-        //         const int sourcePointIndex = i;
-
-        //         cout << "Point" << endl;
-        //         cout << targetPoint << endl;
-        //         cout << source[sourcePointIndex] << endl;
-        //     }
-        //     i++;
-        // }
-        //MatrixXd transformed_mesh;
+        
         SimpleMesh faceMesh;
         if (!faceMesh.loadMesh("../sample_face/transformed_model.off")) {
             std::cout << "Mesh file wasn't read successfully at location: " << "transformed_model.off" << std::endl;
@@ -273,13 +188,6 @@ int main() {
 
 
         PointCloud faceModelPoints{faceMesh};
-        // vector<Vector3f> points = faceModelPoints.getPoints();
-        // cout << "hey" << faceModel->key_points[31] << endl;
-        // transformed_mesh = model->transform(model->pose, model->scale);
-        // cout << " key point " << (transformed_mesh.block(faceModel->key_points[31], 0, 1, 3)) << endl;
-        // cout << " source point " << source[31] << endl;
-        // cout << " read mesh " << points[faceModel->key_points[31]] << endl;
-        // cout << "distance " << (source[31] - points[faceModel->key_points[31]]).norm() << endl;
         
         alignMeshWithICP(data->cropped_cloud);
         

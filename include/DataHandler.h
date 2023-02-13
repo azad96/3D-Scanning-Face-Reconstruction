@@ -63,8 +63,6 @@ Data* read_dataset()
 		PCL_ERROR ("Couldn't read the pcd file \n");
 		return nullptr;
 	}
-    //std::cout<<cloud->height<<std::endl;
-    //std::cout<<cloud->width<<std::endl;
 
 
     // We need a face detector.  We will use this to get bounding boxes for
@@ -82,17 +80,10 @@ Data* read_dataset()
 
     dlib::array2d<dlib::rgb_pixel> img_kp;
     dlib::load_image(img_kp, filename);
-    // TODO : pyramid up i yoruma aldim ama belki daha sonra pyramid down deriz
-    // Make the image larger so we can detect small faces.
-    //pyramid_up(img_kp);
-    //std::cout<<img_kp.nc()<<std::endl;
-    //std::cout<<img_kp.nr()<<std::endl;
 
     // Now tell the face detector to give us a list of bounding boxes
     // around all the faces in the image.
     std::vector<dlib::rectangle> dets = detector(img_kp);
-    cout << "Number of faces detected: " << dets.size() << endl;
-    std::cout << dets[0].tl_corner()<<std::endl;
 
     // Now we will go ask the shape_predictor to tell us the pose of
     // each face we detected.
@@ -100,20 +91,14 @@ Data* read_dataset()
     for (unsigned long j = 0; j < dets.size(); ++j)
     {
         dlib::full_object_detection shape = sp(img_kp, dets[j]);
-        //cout << "number of parts: "<< shape.num_parts() << endl;
-        cout << "pixel position of first part:  " << shape.part(0) << endl;
-        cout << "pixel position of second part: " << shape.part(1) << endl;
-        std::cout << shape.get_rect().tl_corner() <<std::endl;
         
         std::string s = string(filename);
 
         size_t i = s.rfind('.', s.length());
         std::string im_path = s.substr(0,i);
 
-        //std::cout<<im_path<<std::endl;
         std::ofstream outfile (im_path+".txt");
         for ( int l = 0 ; l <shape.num_parts() ; l++){
-            //cout << "landmark " <<  l << " " << shape.part(l) << endl;
             outfile << shape.part(l) << std::endl;
         }
         outfile.close();
@@ -136,18 +121,8 @@ Data* read_dataset()
     dlib::extract_image_chips(img_kp, dlib::get_face_chip_details(shapes), face_chips);
     //cv::Mat img_clip = dlib::toMat(std::move(face_chips[0]));
 
-    //win_faces.set_image(tile_images(face_chips));
-
-    //cout << "Hit enter to process the next image..." << endl;
-    //TODO delete below line
-    //cin.get();
-
-
     // Load corresponding image:
     cv::Mat img = cv::imread(filename, cv::IMREAD_COLOR);
-
-    //cout << "Width : " << img.cols << endl;
-    //cout << "Height: " << img.rows << endl;
 
     // Define projection matrix from 3D to 2D:
     //P matrix is in camera_info.yaml
@@ -162,17 +137,11 @@ Data* read_dataset()
 
     std::vector<Vector3f> keypoints_vectors ; 
     for ( int l = 0 ; l <shapes[0].num_parts() ; l++){
-        //cout << "landmark " <<  l << " " << shapes[0].part(l).x() <<" "<<shapes[0].part(l).y()<< endl;
-        //pcl::PointXYZRGB keypoint = cloud->at(shapes[0].part(l).x(), shapes[0].part(l).y());
         pcl::PointXYZRGB keypoint = cloud->at((int)shapes[0].part(l).x()/2, (int)shapes[0].part(l).y()/2);
 
         x_val.push_back(shapes[0].part(l).x());
         y_val.push_back(shapes[0].part(l).y());
-        //std::cout << "keypoint: " << keypoint.x << " " << keypoint.y << " " << keypoint.z << std::endl;
         keypoints.push_back(keypoint);
-        //Eigen::Vector4f homogeneous_point(keypoint.x, keypoint.y, keypoint.z,1);
-        //Vector3f output = P * homogeneous_point;
-        //std::cout << output << std::endl;
         Vector3f a(keypoint.x, keypoint.y, keypoint.z);
         keypoints_vectors.push_back(a);
     }
@@ -183,7 +152,6 @@ Data* read_dataset()
 
     //float* cropped_depth_map = new float[(max_x-min_x)*(max_y-min_y)];
     float* cropped_depth_map = new float[540*960];
-    cout<<"heyyyyy 00000"<<endl;
     int ind =0 ;
     for(int y = 0; y< 540 ;y++){
         for(int x =0 ; x<960 ; x++){
@@ -193,26 +161,11 @@ Data* read_dataset()
 
     }
     
-    /*for(int i =0 ; i<=10 ;i++){
-        std::cout<<cropped_depth_map[i]<<std::endl;
-    }*/
     Eigen::Matrix3f depthIntrinsics;
     Eigen::Matrix4f depthExtrinsics;
     depthExtrinsics.setIdentity();
     depthIntrinsics <<  1052.667867276341/2, 0, 962.4130834944134/2, 0, 1052.020917785721/2, 536.2206151001486/2, 0, 0,1;
-    //depthIntrinsics /=2;
-    
 
-
-    // float *points = new float[cloud->size()];
-    // int i = 0;
-    // for (const auto& point : *cloud) {
-    //     points[i] = point.z;
-    //     i++;
-    // }
-
-
-    //PointCloud fullCloud = PointCloud(points, depthIntrinsics, depthExtrinsics, 960, 540);
     PointCloud fullCloud;
 
     std::vector<Eigen::Vector3f> pclPoints;
@@ -233,39 +186,7 @@ Data* read_dataset()
         }
     }
 
-    for(int i = 0; i < 64; i++) {
-        cout << "x " << x_val[i] << " y " << y_val[i] << endl;
-        pcl::PointXYZRGB keypoint = cloud->at(x_val[i], y_val[i]);
-
-        Vector3f a(keypoint.x, keypoint.y, keypoint.z);
-        cout << a << endl << "print" << endl;
-        cout << pclPoints[960*y_val[i] + x_val[i]] << endl << "dsa" << endl;
-        cout << "keypoints " << keypoints_vectors[i] << endl;
-        break;
-    }
-
-    /*for (int i=0; i < cloud->size(); i++) {
-        auto point = cloud->at(i);
-        total_count++;
-        
-        pclPoints.push_back(point.getVector3fMap());
-        // cout << "point: " << point.getVector3fMap() << endl;
-        if (isnan(point.x) || isnan(point.y) || isnan(point.z)){
-            null_count++;
-        }
-
-    }*/
-    //cout << "pcl sizet: " << cloud->size() << endl;
-    //cout << "total point count: " << total_count << endl;
-    cout << pclPoints[960*238+338] <<  endl;
-
     PointCloud cropped_cloud = PointCloud(cropped_depth_map,pclPoints,960,540,rgb_);
-    cout<<"heyyyyy"<<endl;
-
-    cout << cropped_cloud.getPoints()[960*238+338]<<endl;
-
-
-
 
     return new Data(keypoints,cloud,keypoints_vectors,img,cropped_cloud,fullCloud, pclPoints);
 
