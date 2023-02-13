@@ -5,6 +5,7 @@
 
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
+#include <fstream>
 
 #include "SimpleMesh.h"
 #include "NearestNeighbor.h"
@@ -15,6 +16,7 @@
 #define SHAPE_REGULARIZATION_WEIGHT 0.000001
 #define EXPRESSION_REGULARIZATION_WEIGHT 0.0000005
 
+#define TRANSFER   0
 struct ShapeCostFunction
 {
 	ShapeCostFunction(double weight_)
@@ -235,6 +237,65 @@ public:
 
         delete [] faces;
     }
+    /*int writeExpCoeff(){
+        std::ofstream out("../sample_face/expression", ios::out | ios::binary);
+        if(!out) {
+            cout << "Cannot open file.";
+            return 1;
+        }
+        out.write((char *) m_arrayExpCoef, sizeof m_arrayExpCoef);
+        out.close();
+    } */
+
+    
+    void writeExp(){
+        std::ofstream myfile;
+        myfile.open ("../sample_face/expression.csv");
+        for(int i=0 ; i<64 ; i++){
+            myfile << std::to_string(m_arrayExpCoef[i])+"\n";
+        }
+        myfile.close();
+    }
+    
+
+    void readExp() {
+
+        std::string line;
+        std::ifstream file("../sample_face/expression.csv");
+        std::string value;
+
+        int ind=0;
+        while (getline(file, line)) {
+
+            std::stringstream lineStringStream(line);
+
+            while (std::getline(lineStringStream, value, ','))
+            {
+                std::cout<<value<<std::endl;
+                m_arrayExpCoef[ind]=stod(value);
+                ind++;
+            }
+        }
+    }
+
+    /*void readExpCoeff(){
+        std::ifstream in("../sample_face/expression", ios::in | ios::binary);
+        //std::cout<<"lel"<<std::endl;
+        //std::cout<<sizeof m_arrayExpCoef<<std::endl;
+        double* new_exp = new double [64];
+        
+        in.read((char *) new_exp, 64);//sizeof m_arrayExpCoef);
+        std::cout<<"-----------------------------------"<<std::endl;
+        in.close();
+        int diff=0;
+        for(int i=0 ; i<64 ; i++){
+            if(m_arrayExpCoef[i]!=new_exp[i]) diff++;
+        }
+        std::cout<<diff<<std::endl;
+        m_arrayExpCoef = new_exp ;
+        
+    }*/
+
 
 private:
     T* m_arrayExpCoef;
@@ -460,20 +521,37 @@ public:
             //std::cout << summary.FullReport() << std::endl;
 
             //update face model with these params
-            faceModel->expCoefAr = expShapeCoeffIncrement.getExpCoeff();
+            if(i == m_nIterations-1){
+                std::cout<<"---------------------------------------"<<std::endl;
+                std::cout<<"-----------LAST ITERATION--------------"<<std::endl;
+                std::cout<<"---------------------------------------"<<std::endl;
+                if(TRANSFER){
+                    expShapeCoeffIncrement.readExp();
+                    std::cout<<"-----------TRANSFER--------------"<<std::endl;
+                }
+                else{
+                    std::cout<<"------EXPRESSION WRITE-----------"<<std::endl;
+                    expShapeCoeffIncrement.writeExp();
+                }
+            }
+            faceModel->expCoefAr = expShapeCoeffIncrement.getExpCoeff();        
             faceModel->shapeCoefAr = expShapeCoeffIncrement.getShapeCoeff();
 
             MatrixXd transformed_mesh;
             transformed_mesh = faceModel->transform(faceModel->pose, faceModel->scale);
+            
             faceModel->write_off("../sample_face/transformed_model.off",transformed_mesh);
 
             std::cout << "Optimization iteration done." << std::endl;
         }
         MatrixXd transformed_mesh;
         transformed_mesh = faceModel->transform(faceModel->pose, faceModel->scale);
+
         faceModel->write_off("../sample_face/result.off",transformed_mesh);
         
         faceModel->write_obj("../sample_face/result.obj",transformed_mesh);
+
+        
 
 
     }

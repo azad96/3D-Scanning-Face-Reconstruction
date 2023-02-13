@@ -50,11 +50,11 @@ Data* read_dataset()
     //std::string filename = "../dataset/image_1.png";
     //std::string pcd_filename="../dataset/cloud_1.pcd";
     
-    //std::string filename = "../RGBD_Face_dataset_testing/Test3/001_06_image.png";
-    //std::string pcd_filename="../RGBD_Face_dataset_testing/Test3/001_06_cloud.pcd";
+    std::string filename = "../RGBD_Face_dataset_testing/Test3/001_06_image.png";
+    std::string pcd_filename="../RGBD_Face_dataset_testing/Test3/001_06_cloud.pcd";
 
-    std::string filename = "../RGBD_Face_dataset_training/000_05_image.png";
-    std::string pcd_filename="../RGBD_Face_dataset_training/000_05_cloud.pcd";
+    //std::string filename = "../RGBD_Face_dataset_training/000_05_image.png";
+    //std::string pcd_filename="../RGBD_Face_dataset_training/000_05_cloud.pcd";
 
 	// Load point cloud:
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
