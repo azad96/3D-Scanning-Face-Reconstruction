@@ -40,7 +40,7 @@ All header files that main.cpp uses are inside the include directory.
 ### DataHandler.h
 A class to read input image and point cloud from the dataset, and create the landmarks and a PointCloud class instance
 
-### FaceMOdel.h 
+### FaceModel.h 
 A singleton class definition to hold all related face data and functions
 
 ### ICPOptimizer.h
